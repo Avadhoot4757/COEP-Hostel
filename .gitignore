@@ -1,0 +1,54 @@
+# General
+*.log
+*.sqlite3
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+*.env
+env/
+venv/
+myenv/
+
+# Django
+db.sqlite3
+/media/
+staticfiles/
+*.pyc
+*.pyo
+__pycache__/
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Next.js
+.next/
+node_modules/
+out/
+*.next
+.env.local
+.env.development
+.env.production
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# PostgreSQL
+*.sql
+*.dump
+*.psql
+pgdata/
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+*.pid
+
+# Editor & System Files
+*.swp
+*.swo
+*.swn
+Thumbs.db
+
