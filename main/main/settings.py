@@ -77,10 +77,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'hostel_db',  # Your database name
-        'USER': 'root',    # Your PostgreSQL username
-        'PASSWORD': '2005',  # Your PostgreSQL password
-        'HOST': 'localhost',   # Set to '127.0.0.1' or 'localhost'
-        'PORT': '5432',        # Default PostgreSQL port
+        'USER': 'avnadmin',    # Your PostgreSQL username
+        'PASSWORD': 'AVNS_N2dEDB4bcIvdwkUVQkk',  # Your PostgreSQL password
+        'HOST': 'hostel-db-avadhootsghewade4757-92d8.f.aivencloud.com',   # Set to '127.0.0.1' or 'localhost'
+        'PORT': '14866',        # Default PostgreSQL port
     }
 }
 
