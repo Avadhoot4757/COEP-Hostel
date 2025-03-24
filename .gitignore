@@ -10,7 +10,8 @@ __pycache__/
 env/
 venv/
 myenv/
-
+env/
+    
 # Django
 db.sqlite3
 /media/
