@@ -1,0 +1,16 @@
+{
+  "username": "612203057",
+  "email": "avadhootsghewade4757@gmail.com",
+  "year": "FirstYear",
+  "password": "strongpassword",
+  "password2": "strongpassword"
+}
+
+{
+  "username": "612203056",
+  "email": "ghewadeas22.comp@coeptech.ac.in",
+  "year": "SecondYear",
+  "password": "strongpassword",
+  "password2": "strongpassword"
+}
+

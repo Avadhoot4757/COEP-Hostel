@@ -20,13 +20,18 @@ class SignupSerializer(serializers.Serializer):
                 if student.personal_mail != data['email']: 
                     raise serializers.ValidationError({"student": "Student details don't match with database!"})
             else:
-                if student.college_mail != datt['email']:
+                if student.college_mail != data['email']:
                     raise serializers.ValidationError({"student": "Student details don't match with database!"})
         except ObjectDoesNotExist:
             raise serializers.ValidationError({"student": "Student details don't match with database!"})
 
         return data
 
+
 class OTPVerificationSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6)
 
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
