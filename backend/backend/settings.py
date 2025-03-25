@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'authentication',
+    'rest_framework'
 ]
 
 MIDDLEWARE = [
@@ -77,10 +79,6 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'hostel_db',  # Your database name
-        'USER': 'root',    # Your PostgreSQL username
-        'PASSWORD': '2005',  # Your PostgreSQL password
-        'HOST': 'localhost',   # Set to '127.0.0.1' or 'localhost'
-        'PORT': '5432',        # Default PostgreSQL port
         'USER': 'avnadmin',    # Your PostgreSQL username
         'PASSWORD': 'AVNS_N2dEDB4bcIvdwkUVQkk',  # Your PostgreSQL password
         'HOST': 'hostel-db-avadhootsghewade4757-92d8.f.aivencloud.com',   # Set to '127.0.0.1' or 'localhost'
@@ -129,3 +127,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'authentication.CustomUser'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'djangoproject24@gmail.com'
+EMAIL_HOST_PASSWORD = 'izkb yqsh bviy ptta'
