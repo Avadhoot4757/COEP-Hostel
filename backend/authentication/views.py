@@ -1,5 +1,6 @@
 import random
 from django.contrib.auth.models import Group
+from django.utils.timezone import now
 from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from rest_framework.response import Response
@@ -10,7 +11,11 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import SignupSerializer, OTPVerificationSerializer, LoginSerializer
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.urls import reverse
+from .serializers import SignupSerializer, OTPVerificationSerializer, LoginSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
 
 CustomUser = get_user_model()
 
@@ -24,6 +29,7 @@ class SignupAPIView(APIView):
             verification_code = ''.join(random.choices('0123456789', k=6))
 
             request.session['verification_code'] = verification_code
+            request.session['otp_timestamp'] = now().isoformat()
             request.session['email'] = data['email']
             request.session['username'] = data['username']
             request.session['password'] = data['password']
@@ -56,6 +62,15 @@ class VerifyOTPAPIView(APIView):
         if serializer.is_valid():
             entered_otp = serializer.validated_data['otp']
             stored_otp = request.session.get('verification_code')
+            otp_timestamp = request.session.get('otp_timestamp')
+
+            if not stored_otp or not otp_timestamp:
+                return Response({"error": "OTP expired or invalid. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
+
+            if now() - datetime.fromisoformat(otp_timestamp) > timedelta(minutes=10):
+                request.session.pop('verification_code', None)
+                request.session.pop('otp_timestamp', None)
+                return Response({"error": "OTP expired. Request a new one."}, status=status.HTTP_400_BAD_REQUEST)
 
             if entered_otp == stored_otp:
                 email = request.session.get('email')
@@ -84,7 +99,6 @@ class VerifyOTPAPIView(APIView):
 
 
 def get_tokens_for_user(user):
-    """Generate JWT token pair for a user"""
     refresh = RefreshToken.for_user(user)
     return {
         'refresh': str(refresh),
@@ -110,6 +124,70 @@ class LoginAPIView(APIView):
                 }, status=status.HTTP_200_OK)
 
             return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RequestPasswordResetAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+
+            try:
+                user = CustomUser.objects.get(email=email)
+            except CustomUser.DoesNotExist:
+                return Response({"error": "User with this email does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Generate password reset token
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+
+            # Construct password reset link
+            reset_link = request.build_absolute_uri(
+                reverse("password-reset-confirm", kwargs={"uidb64": uid, "token": token})
+            )
+
+            # Send email with reset link
+            send_mail(
+                subject="Password Reset Request",
+                message=f"Click the link below to reset your password:\n{reset_link}",
+                from_email="djangoproject24@gmail.com",
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+
+            return Response({"message": "Password reset link sent successfully."}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetConfirmAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, uidb64, token):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if serializer.is_valid():
+            new_password = serializer.validated_data['new_password']
+
+            try:
+                uid = force_str(urlsafe_base64_decode(uidb64))
+                user = CustomUser.objects.get(pk=uid)
+
+                # Validate token
+                if not default_token_generator.check_token(user, token):
+                    return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Set new password
+                user.set_password(new_password)
+                user.save()
+
+                return Response({"message": "Password reset successfully."}, status=status.HTTP_200_OK)
+
+            except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
+                return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
