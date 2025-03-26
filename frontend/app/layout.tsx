@@ -7,8 +7,8 @@ import { Toaster } from "@/components/ui/toaster";
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'COEP Hostel',
-  description: 'A home away from home for COEP students',
+  title: "COEP Hostel Admission",
+  description: "Hostel Admission portal for COEP",
 };
 
 export default function RootLayout({

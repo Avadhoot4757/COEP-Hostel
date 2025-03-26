@@ -1,8 +1,8 @@
 'use client';
-import React, { useState, DragEvent, ChangeEvent } from 'react';
+import React from 'react'; // Explicitly import React
 import { Upload, X, CheckCircle, AlertCircle, Eye, EyeOff, Database, FileText, Info } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import api from "@/lib/api";
+import * as XLSX from 'sheetjs-style';
+import api from '@/lib/api';
 
 interface StudentData {
   id: number;
@@ -18,14 +18,14 @@ interface ToastState {
 }
 
 const StudentUploadPage: React.FC = () => {
-  const [file, setFile] = useState<File | null>(null);
-  const [extractedData, setExtractedData] = useState<StudentData[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [showToast, setShowToast] = useState<ToastState>({ show: false, type: '', message: '' });
-  const [showPreview, setShowPreview] = useState<boolean>(false);
-  const [isDragOver, setIsDragOver] = useState<boolean>(false);
-  const [showExtractAnimation, setShowExtractAnimation] = useState<boolean>(false);
-  const [showUploadAnimation, setShowUploadAnimation] = useState<boolean>(false);
+  const [file, setFile] = React.useState<File | null>(null);
+  const [extractedData, setExtractedData] = React.useState<StudentData[]>([]);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  const [showToast, setShowToast] = React.useState<ToastState>({ show: false, type: '', message: '' });
+  const [showPreview, setShowPreview] = React.useState<boolean>(false);
+  const [isDragOver, setIsDragOver] = React.useState<boolean>(false);
+  const [showExtractAnimation, setShowExtractAnimation] = React.useState<boolean>(false);
+  const [showUploadAnimation, setShowUploadAnimation] = React.useState<boolean>(false);
 
   const expectedColumns: string[] = ['roll_no', 'email', 'class_name'];
   const classChoices: string[] = ['fy', 'sy', 'ty', 'btech'];
@@ -35,26 +35,27 @@ const StudentUploadPage: React.FC = () => {
     setTimeout(() => setShowToast({ show: false, type: '', message: '' }), 5000);
   };
 
-  const handleDragOver = (e: DragEvent<HTMLDivElement>): void => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragOver(true);
   };
 
-  const handleDragLeave = (e: DragEvent<HTMLDivElement>): void => {
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragOver(false);
   };
 
-  const handleDrop = (e: DragEvent<HTMLDivElement>): void => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault();
     setIsDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && (
-      droppedFile.type.includes('excel') || 
-      droppedFile.type.includes('spreadsheet') || 
-      droppedFile.name.endsWith('.xlsx') || 
-      droppedFile.name.endsWith('.xls')
-    )) {
+    if (
+      droppedFile &&
+      (droppedFile.type.includes('excel') ||
+        droppedFile.type.includes('spreadsheet') ||
+        droppedFile.name.endsWith('.xlsx') ||
+        droppedFile.name.endsWith('.xls'))
+    ) {
       setFile(droppedFile);
       processFile(droppedFile);
     } else {
@@ -62,7 +63,7 @@ const StudentUploadPage: React.FC = () => {
     }
   };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>): void => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
@@ -72,13 +73,12 @@ const StudentUploadPage: React.FC = () => {
 
   const processFile = async (file: File): Promise<void> => {
     setLoading(true);
-    
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
+      const workbook = XLSX.read(data, { type: 'array' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
+      const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
       if (jsonData.length === 0) {
         showToastMessage('error', 'The Excel file appears to be empty');
@@ -86,14 +86,14 @@ const StudentUploadPage: React.FC = () => {
         return;
       }
 
-      const fileColumns = Object.keys(jsonData[0]).map(col => col.toLowerCase().trim());
-      
-      const matchingColumns = expectedColumns.filter(expectedCol => 
-        fileColumns.some(fileCol => 
-          fileCol.includes(expectedCol.replace('_', '')) || 
-          expectedCol.replace('_', '').includes(fileCol) ||
-          fileCol === expectedCol
-        )
+      const fileColumns = (jsonData[0] as string[]).map(col => col.toLowerCase().trim());
+      const matchingColumns = expectedColumns.filter(expectedCol =>
+        fileColumns.some(
+          fileCol =>
+            fileCol.includes(expectedCol.replace('_', '')) ||
+            expectedCol.replace('_', '').includes(fileCol) ||
+            fileCol === expectedCol,
+        ),
       );
 
       if (matchingColumns.length !== expectedColumns.length) {
@@ -102,49 +102,50 @@ const StudentUploadPage: React.FC = () => {
         return;
       }
 
-      const mappedData: StudentData[] = jsonData
-        .map((row: any, index: number) => {
-          const mappedRow: StudentData = { id: index + 1, roll_no: '', email: '', class_name: '' };
-          
-          expectedColumns.forEach(expectedCol => {
-            const fileColKey = Object.keys(row).find(key => 
-              key.toLowerCase().trim().includes(expectedCol.replace('_', '')) ||
-              expectedCol.replace('_', '').includes(key.toLowerCase().trim()) ||
-              key.toLowerCase().trim() === expectedCol
-            );
-            
-            if (fileColKey) {
-                if(expectedCol === 'roll_no') {
-                    mappedRow.roll_no = String(row[fileColKey]).trim();
-                    }
-                else if(expectedCol === 'email') {
-                    mappedRow.email = String(row[fileColKey]).trim().toLowerCase();
-                }
-                else if(expectedCol === 'class_name'){
-                    let className = String(row[fileColKey]).trim().toLowerCase();
-                    
-                    if (className.includes('1st') || className.includes('first') || className.includes('1')) {
-                      className = 'fy';
-                    } else if (className.includes('2nd') || className.includes('second') || className.includes('2')) {
-                      className = 'sy';
-                    } else if (className.includes('3rd') || className.includes('third') || className.includes('3')) {
-                      className = 'ty';
-                    } else if (className.includes('4th') || className.includes('fourth') || className.includes('4') || className.includes('final')) {
-                      className = 'btech';
-                    }
-                    
-                    mappedRow.class_name = className;
-                }
+      const mappedData: StudentData[] = jsonData.slice(1).map((row: any, index: number) => {
+        const mappedRow: StudentData = { id: index + 1, roll_no: '', email: '', class_name: '' };
+        const rowData = row as string[];
+
+        expectedColumns.forEach((expectedCol, colIndex) => {
+          const fileColIndex = fileColumns.findIndex(
+            fileCol =>
+              fileCol.includes(expectedCol.replace('_', '')) ||
+              expectedCol.replace('_', '').includes(fileCol) ||
+              fileCol === expectedCol,
+          );
+
+          if (fileColIndex !== -1 && rowData[fileColIndex]) {
+            if (expectedCol === 'roll_no') {
+              mappedRow.roll_no = String(rowData[fileColIndex]).trim();
+            } else if (expectedCol === 'email') {
+              mappedRow.email = String(rowData[fileColIndex]).trim().toLowerCase();
+            } else if (expectedCol === 'class_name') {
+              let className = String(rowData[fileColIndex]).trim().toLowerCase();
+              if (className.includes('1st') || className.includes('first') || className.includes('1')) {
+                className = 'fy';
+              } else if (className.includes('2nd') || className.includes('second') || className.includes('2')) {
+                className = 'sy';
+              } else if (className.includes('3rd') || className.includes('third') || className.includes('3')) {
+                className = 'ty';
+              } else if (
+                className.includes('4th') ||
+                className.includes('fourth') ||
+                className.includes('4') ||
+                className.includes('final')
+              ) {
+                className = 'btech';
+              }
+              mappedRow.class_name = className;
             }
-          });
-          
-          if (mappedRow.class_name && !classChoices.includes(mappedRow.class_name.toLowerCase())) {
-            mappedRow.class_name = '';
           }
-          
-          return mappedRow;
-        })
-        .filter(row => row.roll_no && row.email); 
+        });
+
+        if (mappedRow.class_name && !classChoices.includes(mappedRow.class_name.toLowerCase())) {
+          mappedRow.class_name = '';
+        }
+
+        return mappedRow;
+      }).filter(row => row.roll_no && row.email);
 
       if (mappedData.length === 0) {
         showToastMessage('error', 'No valid student records found in the file');
@@ -159,12 +160,10 @@ const StudentUploadPage: React.FC = () => {
         setShowExtractAnimation(false);
       }, 2000);
       showToastMessage('success', `Successfully extracted ${mappedData.length} student records`);
-      
     } catch (error) {
       showToastMessage('error', 'Error processing file. Please check the file format.');
       console.error('File processing error:', error);
     }
-    
     setLoading(false);
   };
 
@@ -181,15 +180,13 @@ const StudentUploadPage: React.FC = () => {
       const dataToSubmit = extractedData.map(row => ({
         roll_no: row.roll_no,
         email: row.email,
-        class_name: row.class_name.toLowerCase() || classChoices[0]
+        class_name: row.class_name.toLowerCase() || classChoices[0],
       }));
 
-      // Fire and forget the POST request
       api.post('/auth/studentverification/', dataToSubmit).catch(error => {
         console.error('Upload error:', error);
       });
 
-      // Show success immediately
       setTimeout(() => {
         showToastMessage('success', `Successfully added ${extractedData.length} students to database`);
         setFile(null);
@@ -245,9 +242,7 @@ const StudentUploadPage: React.FC = () => {
         <div className="bg-white border-2 border-gray-200 rounded-lg p-8 mb-6">
           <div
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-500 ${
-              isDragOver 
-                ? 'border-blue-400 bg-blue-50 scale-105' 
-                : 'border-gray-300 hover:border-gray-400'
+              isDragOver ? 'border-blue-400 bg-blue-50 scale-105' : 'border-gray-300 hover:border-gray-400'
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -357,7 +352,7 @@ const StudentUploadPage: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {extractedData.slice(0, 10).map((row) => (
+                      {extractedData.slice(0, 10).map(row => (
                         <tr key={row.id} className="hover:bg-gray-50 transition-colors duration-200">
                           <td className="px-4 py-3 text-sm text-gray-500">{row.id}</td>
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">{row.roll_no}</td>
@@ -402,11 +397,13 @@ const StudentUploadPage: React.FC = () => {
 
         {showToast.show && (
           <div className="fixed top-4 right-4 z-50 transform transition-all duration-500 ease-out animate-in slide-in-from-right-4">
-            <div className={`p-4 rounded-lg shadow-lg flex items-center space-x-3 ${
-              showToast.type === 'success' 
-                ? 'bg-green-100 text-green-800 border border-green-200' 
-                : 'bg-red-100 text-red-800 border border-red-200'
-            }`}>
+            <div
+              className={`p-4 rounded-lg shadow-lg flex items-center space-x-3 ${
+                showToast.type === 'success'
+                  ? 'bg-green-100 text-green-800 border border-green-200'
+                  : 'bg-red-100 text-red-800 border border-red-200'
+              }`}
+            >
               {showToast.type === 'success' ? (
                 <CheckCircle className="w-5 h-5 text-green-600" />
               ) : (
