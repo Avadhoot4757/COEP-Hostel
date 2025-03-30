@@ -14,11 +14,19 @@ import { loadFull } from "tsparticles";
 export default function Home() {
   const [showAuth, setShowAuth] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
+  const [otpField, setOtpField] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Add this new state for tracking errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const observerRef = useRef<IntersectionObserver | null>(null);
 
+  // Make sure Particles initialization is properly handled
   const particlesInit = useCallback(async (engine: Engine) => {
-    await loadFull(engine);
+    try {
+      await loadFull(engine);
+    } catch (error) {
+      console.error("Error initializing particles:", error);
+    }
   }, []);
 
   useEffect(() => {
@@ -79,19 +87,187 @@ export default function Home() {
     }
   ];
 
+  // Update your form submission function with better error handling
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Form data will be handled here for Django backend
     const formData = new FormData(e.currentTarget);
+    const newErrors: Record<string, string> = {};
+    
+    // Validate fields based on login or register mode
+    if (!isLogin) {
+      // Email validation (only for registration)
+      const email = formData.get('email') as string;
+      if (!email || email.trim() === '') {
+        newErrors.email = 'Email is required';
+      }
+      
+      // Password confirmation (only for registration)
+      const password = formData.get('password') as string;
+      const password2 = formData.get('password2') as string;
+      if (!password2 || password2.trim() === '') {
+        newErrors.password2 = 'Please confirm your password';
+      } else if (password !== password2) {
+        newErrors.password2 = 'Passwords do not match';
+      }
+      
+      // OTP validation (if OTP field is shown)
+      if (otpField) {
+        const otp = formData.get('otp') as string;
+        if (!otp || otp.trim() === '') {
+          newErrors.otp = 'OTP is required';
+        }
+      }
+    }
+    
+    // Common validations for both login and register
+    const mis = formData.get('mis') as string;
+    if (!mis || mis.trim() === '') {
+      newErrors.mis = 'MIS is required';
+    }
+    
+    const password = formData.get('password') as string;
+    if (!password || password.trim() === '') {
+      newErrors.password = 'Password is required';
+    }
+    
+    // If there are errors, show them and stop form submission
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    
+    // Clear previous errors if validation passes
+    setErrors({});
+    
+    // For registration, show OTP field after initial form is valid
+    if (!isLogin && !otpField) {
+      try {
+        // Get the data from form
+        const username = formData.get('mis') as string; // using mis field as username/roll_no
+        const email = formData.get('email') as string;
+        const password = formData.get('password') as string;
+        const password2 = formData.get('password2') as string;
+        
+        // You need to add a year field to your form
+        const year = formData.get('year') as string; // Add this field to your form
+        
+        console.log("Sending registration data:", {
+          username: username,
+          email: email,
+          year: year,
+          password: password,
+          password2: password2
+        });
+        
+        // Send registration request to get OTP
+        const response = await fetch('http://127.0.0.1:8000/auth/signup/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            username: username,
+            email: email,
+            year: year,
+            password: password,
+            password2: password2
+          }),
+        });
+        
+        const data = await response.json();
+        console.log("Registration response:", data);
+        
+        if (!response.ok) {
+          // Handle API errors
+          if (data.student) {
+            setErrors({ form: data.student });
+            return;
+          } else if (data.password) {
+            setErrors({ form: data.password });
+            return;
+          } else if (data.errors) {
+            setErrors(data.errors);
+            return;
+          } else if (data.error) {
+            setErrors({ form: data.error });
+            return;
+          } else if (data.detail) {
+            setErrors({ form: data.detail });
+            return;
+          }
+          throw new Error(data.message || 'Failed to request OTP');
+        }
+        
+        // Show OTP field if request was successful
+        setOtpField(true);
+        // Show success message
+        alert("OTP has been sent to your email");
+        
+      } catch (error) {
+        console.error('Error requesting OTP:', error);
+        setErrors({ form: 'Failed to send OTP. Please try again.' });
+      }
+      return;
+    }
+    
     try {
-      const response = await fetch('YOUR_DJANGO_API_ENDPOINT', {
+      let url, requestData;
+      const otp = formData.get('otp') as string;
+      if (isLogin) {
+        // Handle login
+        url = 'http://127.0.0.1:8000/auth/login/';
+        requestData = {
+          mis: mis,
+          password: password
+        };
+      } else {
+        // Handle registration with OTP verification
+        const response = await fetch('http://127.0.0.1:8000/auth/verify-otp/',{
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            otp:otp,
+          }),
+        })
+        console.log(response);
+      }
+      
+      const response = await fetch('http://127.0.0.1:8000/auth/login/', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
       });
+      
       const data = await response.json();
-      // Handle response
+      
+      if (!response.ok) {
+        // Handle error response from Django
+        if (data.errors) {
+          setErrors(data.errors);
+          return;
+        }
+        throw new Error(data.message || 'Authentication failed');
+      }
+      
+      // Handle successful response
+      if (data.token) {
+        // Store token in localStorage or cookies
+        localStorage.setItem('authToken', data.token);
+        // Redirect or update UI based on successful authentication
+        setShowAuth(false);
+        // Optional: Show success message
+        alert(isLogin ? 'Login successful!' : 'Registration successful!');
+      }
+      
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Authentication error:', error);
+      setErrors({ form: 'Authentication failed. Please try again.' });
     }
   };
 
@@ -174,27 +350,96 @@ export default function Home() {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" name="name" type="text" placeholder="John Doe" />
-                </div>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" placeholder="you@example.com" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password" type="password" />
-              </div>
-              <Button type="submit" className="w-full bg-[#ff3333] hover:bg-[#cc0000] text-white">
-                {isLogin ? 'Login' : 'Register'}
-              </Button>
+               
+<div className="space-y-2">
+  <Label htmlFor="Mis">Mis</Label>
+  <Input 
+    id="mis" 
+    name="mis" 
+    type="text"
+    className={errors.mis ? "border-red-500" : ""}
+  />
+  {errors.mis && <p className="text-xs text-red-500 mt-1">{errors.mis}</p>}
+</div>
+
+{!isLogin && (
+  <div className="space-y-2">
+    <Label htmlFor="email">Email</Label>
+    <Input 
+      id="email" 
+      name="email" 
+      type="email"
+      className={errors.email ? "border-red-500" : ""}
+    />
+    {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+  </div>  
+)}
+{!isLogin && (
+  <div className="space-y-2">
+    <Label htmlFor="year">Year of Study</Label>
+    <select 
+      id="year" 
+      name="year" 
+      className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
+    >
+      <option value="">Select Year</option>
+      <option value="FirstYear">First Year</option>
+      <option value="SecondYear">Second Year</option>
+      <option value="ThirdYear">Third Year</option>
+      <option value="FourthYear">Fourth Year</option>
+    </select>
+    {errors.year && <p className="text-xs text-red-500 mt-1">{errors.year}</p>}
+  </div>
+)}
+<div className="space-y-2">
+  <Label htmlFor="password">Password</Label>
+  <Input 
+    id="password" 
+    name="password" 
+    type="password"
+    className={errors.password ? "border-red-500" : ""}
+  />
+  {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
+</div>
+
+{!isLogin && (
+  <div className="space-y-2">
+    <Label htmlFor="password2">Confirm Password</Label>
+    <Input 
+      id="password2" 
+      name="password2" 
+      type="password"
+      className={errors.password2 ? "border-red-500" : ""}
+    />
+    {errors.password2 && <p className="text-xs text-red-500 mt-1">{errors.password2}</p>}
+  </div>
+)}
+
+{!isLogin && otpField && (
+  <div className="space-y-2">
+    <Label htmlFor="otp">Enter OTP</Label>
+    <Input 
+      id="otp" 
+      name="otp" 
+      type="text" 
+      placeholder="Enter verification code"
+      className={errors.otp ? "border-red-500" : ""}
+    />
+    {errors.otp && <p className="text-xs text-red-500 mt-1">{errors.otp}</p>}
+    <p className="text-xs text-gray-500">OTP has been sent to your email address</p>
+  </div>
+)}
+
+<Button 
+  type="submit" 
+  className="w-full bg-[#ff3333] hover:bg-[#cc0000] text-white"
+>
+  {isLogin ? 'Login' : otpField ? 'Verify & Register' : 'Register'}
+</Button>
               <p className="text-center text-sm text-gray-600">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
                 <button
-                  type="button"
+                  type="submit"
                   onClick={() => setIsLogin(!isLogin)}
                   className="text-[#ff3333] hover:text-[#cc0000] font-semibold"
                 >
@@ -228,7 +473,7 @@ export default function Home() {
                 <a
                   key={item}
                   href="#"
-                  className="text-gray-900 hover:text-[#ff3333] transition-colors duration-200 font-medium
+                  className="text-gray-9 hover:text-[#ff3333] transition-colors duration-200 font-medium
                            relative after:content-[''] after:absolute after:w-full after:h-0.5
                            after:bg-[#ff3333] after:left-0 after:-bottom-1 after:scale-x-0
                            hover:after:scale-x-100 after:transition-transform after:duration-300"
@@ -278,7 +523,7 @@ export default function Home() {
       <section 
         className="relative h-screen bg-cover bg-center"
         style={{
-          backgroundImage: "url('https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80')"
+          backgroundImage: "url('/images/hostel3.jpeg')",
         }}
       >
         <div className="absolute inset-0 bg-black/50" />

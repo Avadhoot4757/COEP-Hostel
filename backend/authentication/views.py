@@ -16,6 +16,8 @@ from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.urls import reverse
 from .serializers import SignupSerializer, OTPVerificationSerializer, LoginSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
+from datetime import datetime   
+from datetime import timedelta   
 
 CustomUser = get_user_model()
 
@@ -56,13 +58,14 @@ class SignupAPIView(APIView):
 
 class VerifyOTPAPIView(APIView):
     permission_classes = [AllowAny]
-
+    
     def post(self, request):
         serializer = OTPVerificationSerializer(data=request.data)
         if serializer.is_valid():
             entered_otp = serializer.validated_data['otp']
             stored_otp = request.session.get('verification_code')
             otp_timestamp = request.session.get('otp_timestamp')
+            print(entered_otp, stored_otp, otp_timestamp) 
 
             if not stored_otp or not otp_timestamp:
                 return Response({"error": "OTP expired or invalid. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
