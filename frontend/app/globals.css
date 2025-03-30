@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 10, 10, 10;
-  --background-end-rgb: 20, 20, 20;
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 245, 245, 245;
+  --background-end-rgb: 235, 235, 235;
 }
 
 body {
@@ -19,12 +19,12 @@ body {
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --background: 0 0% 96%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 98%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 98%;
+    --popover-foreground: 240 10% 3.9%;
     --primary: 346 89% 50%;
     --primary-foreground: 0 0% 98%;
     --secondary: 240 3.7% 15.9%;
@@ -63,10 +63,19 @@ body {
 
 .amenity-container {
   position: relative;
-  min-height: 100vh;
+  min-height: 60vh;
   display: flex;
   align-items: center;
   padding: 4rem 0;
+}
+
+@media (max-width: 768px) {
+  .amenity-container {
+    min-height: auto;
+    padding: 2rem 0;
+    flex-direction: column-reverse;
+    gap: 2rem;
+  }
 }
 
 .amenity-content {
@@ -78,9 +87,22 @@ body {
   transition: all 0.8s ease-out;
 }
 
+@media (max-width: 768px) {
+  .amenity-content {
+    width: 100%;
+    transform: translateY(50px);
+  }
+}
+
 .amenity-content.visible {
   opacity: 1;
   transform: translateX(0);
+}
+
+@media (max-width: 768px) {
+  .amenity-content.visible {
+    transform: translateY(0);
+  }
 }
 
 .amenity-image-container {
@@ -88,11 +110,22 @@ body {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 55%;
-  height: 70vh;
+  width: 45%;
+  height: 50vh;
   z-index: 1;
   opacity: 0;
   transition: all 0.8s ease-out;
+}
+
+@media (max-width: 768px) {
+  .amenity-image-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    top: 0;
+    transform: none;
+    margin-bottom: 1rem;
+  }
 }
 
 .amenity-image-container.visible {
@@ -105,6 +138,26 @@ body {
   object-fit: cover;
   border-radius: 20px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 1rem;
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
 @keyframes fadeInSlideLeft {
