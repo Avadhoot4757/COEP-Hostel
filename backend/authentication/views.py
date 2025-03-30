@@ -18,6 +18,13 @@ from django.urls import reverse
 from .serializers import SignupSerializer, OTPVerificationSerializer, LoginSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
 from datetime import datetime   
 from datetime import timedelta   
+from django.core.cache import cache
+from django.utils.timezone import now
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+import random, uuid
 
 CustomUser = get_user_model()
 
@@ -29,14 +36,18 @@ class SignupAPIView(APIView):
         if serializer.is_valid():
             data = serializer.validated_data
             verification_code = ''.join(random.choices('0123456789', k=6))
-
-            request.session['verification_code'] = verification_code
-            request.session['otp_timestamp'] = now().isoformat()
-            request.session['email'] = data['email']
-            request.session['username'] = data['username']
-            request.session['password'] = data['password']
-            request.session['year'] = data['year']
-
+            token = uuid.uuid4().hex  # Generate unique token
+            
+            # Store OTP and user data in cache with expiry (10 minutes)
+            cache.set(token, {
+                'otp': verification_code,
+                'email': data['email'],
+                'username': data['username'],
+                'password': data['password'],
+                'year': data['year'],
+                'timestamp': now().isoformat()
+            }, timeout=600)
+            
             # Render email template with OTP
             email_subject = "Verify Your Sign-up"
             email_body = render_to_string('otp_email.html', {'otp': verification_code, 'email': data['email']})
@@ -51,7 +62,7 @@ class SignupAPIView(APIView):
             email.attach_alternative(email_body, "text/html")
             email.send()
 
-            return Response({"message": "OTP sent successfully. Check your email."}, status=status.HTTP_200_OK)
+            return Response({"message": "OTP sent successfully. Check your email.", "token": token}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -61,28 +72,33 @@ class VerifyOTPAPIView(APIView):
     
     def post(self, request):
         serializer = OTPVerificationSerializer(data=request.data)
+        print("hi\n")
         if serializer.is_valid():
+            print("hi2\n")
             entered_otp = serializer.validated_data['otp']
-            stored_otp = request.session.get('verification_code')
-            otp_timestamp = request.session.get('otp_timestamp')
-            print(entered_otp, stored_otp, otp_timestamp) 
-
-            if not stored_otp or not otp_timestamp:
+            token = serializer.validated_data['token']
+            print(entered_otp + " " + token)
+            # Retrieve data from cache
+            stored_data = cache.get(token)
+            if not stored_data:
+                print("hi")
                 return Response({"error": "OTP expired or invalid. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
-
-            if now() - datetime.fromisoformat(otp_timestamp) > timedelta(minutes=10):
-                request.session.pop('verification_code', None)
-                request.session.pop('otp_timestamp', None)
+            
+            stored_otp = stored_data['otp']
+            timestamp = stored_data['timestamp']
+            
+            # Check OTP expiration
+            if now() - datetime.fromisoformat(timestamp) > timedelta(minutes=10):
+                print("hi2")
+                cache.delete(token)
                 return Response({"error": "OTP expired. Request a new one."}, status=status.HTTP_400_BAD_REQUEST)
-
+            
+            print(stored_otp)
             if entered_otp == stored_otp:
-                email = request.session.get('email')
-                password = request.session.get('password')
-                username = request.session.get('username')
-
-                if not (email and password and username):
-                    return Response({"error": "Invalid session data. Please retry."}, status=status.HTTP_400_BAD_REQUEST)
-
+                email = stored_data['email']
+                password = stored_data['password']
+                username = stored_data['username']
+                
                 try:
                     new_user = CustomUser.objects.create_user(
                         username=username, email=email, password=password, user_type='student'
@@ -90,12 +106,15 @@ class VerifyOTPAPIView(APIView):
 
                     student_group, _ = Group.objects.get_or_create(name='Student')
                     student_group.user_set.add(new_user)
-
+                    
+                    cache.delete(token)  # Remove used token
                     return Response({"message": "Verification successful. You can log in now."}, status=status.HTTP_200_OK)
-
+                
                 except Exception as e:
+                    print("on\n")
                     return Response({"error": f"Failed to create user: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
+            
+            print("oh\n")
             return Response({"error": "Invalid OTP. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

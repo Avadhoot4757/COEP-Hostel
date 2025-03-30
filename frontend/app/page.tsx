@@ -19,6 +19,7 @@ export default function Home() {
   // Add this new state for tracking errors
   const [errors, setErrors] = useState<Record<string, string>>({});
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const [token, setToken] = useState<string | null>(null); // Add this to store the token
 
   // Make sure Particles initialization is properly handled
   const particlesInit = useCallback(async (engine: Engine) => {
@@ -201,6 +202,8 @@ export default function Home() {
         
         // Show OTP field if request was successful
         setOtpField(true);
+        setToken(data.token);
+        console.log(token)
         // Show success message
         alert("OTP has been sent to your email");
         
@@ -223,24 +226,20 @@ export default function Home() {
         };
       } else {
         // Handle registration with OTP verification
-        const response = await fetch('http://127.0.0.1:8000/auth/verify-otp/',{
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            otp:otp,
-          }),
-        })
-        console.log(response);
+        url = 'http://127.0.0.1:8000/auth/verify-otp/';
+        requestData = {
+          otp: otp,
+          token: token
+        };
       }
       
-      const response = await fetch('http://127.0.0.1:8000/auth/login/', {
+      console.log(requestData)
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(requestData),
       });
       
@@ -289,8 +288,7 @@ export default function Home() {
                 random: true,
                 speed: 3,
                 straight: false,
-                outMode: "out",
-                bounce: false,
+                outMode: "out", bounce: false,
                 attract: {
                   enable: false,
                   rotateX: 600,

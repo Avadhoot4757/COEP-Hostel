@@ -30,6 +30,7 @@ class SignupSerializer(serializers.Serializer):
 
 class OTPVerificationSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6)
+    token = serializers.CharField(required=True)
 
 
 class LoginSerializer(serializers.Serializer):
