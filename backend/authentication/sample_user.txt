@@ -14,3 +14,8 @@
   "password2": "strongpassword"
 }
 
+"message": "Login successful",
+    "tokens": {
+        "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc0MzQxMTEyOCwiaWF0IjoxNzQzMzI0NzI4LCJqdGkiOiJiNzAwNGM1ODliZjc0NjhiYjU1OWFmMjkyOTcwYzE0NiIsInVzZXJfaWQiOjF9.ug67dnYWRp6nhgrjEcnYZCDGQzeP4UHrv6lw_pXvBUQ",
+        "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzMzI1MDI4LCJpYXQiOjE3NDMzMjQ3MjgsImp0aSI6ImNjNWM2OGRmNzFjMDQ0ZGM4OTA5MmM1NzA4YWNjMDYyIiwidXNlcl9pZCI6MX0.3doeknxsDyFyp8NXWXXeWZd4IqYxFGDKEa4A67CMXg0"
+    }
