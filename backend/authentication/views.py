@@ -15,18 +15,31 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.urls import reverse
-from .serializers import SignupSerializer, OTPVerificationSerializer, LoginSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
+from .serializers import SignupSerializer, OTPVerificationSerializer, LoginSerializer  
+from .serializers import StudentDataEntrySerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
+from .models import StudentDataEntry
 from datetime import datetime   
 from datetime import timedelta   
 from django.core.cache import cache
 from django.utils.timezone import now
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 import random, uuid
 
 CustomUser = get_user_model()
+
+
+class StudentDataEntryView(APIView):
+    def post(self, request):
+        serializer = StudentDataEntrySerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Student entry created successfully!", "data": serializer.data}, 
+                            status=status.HTTP_201_CREATED)
+        return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SignupAPIView(APIView):
     permission_classes = [AllowAny]
