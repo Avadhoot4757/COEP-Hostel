@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from '@/contexts/AuthContext';
+import ForgotPassword from './ForgotPassword';
 
 interface AuthModalProps {
   isLogin: boolean;
@@ -18,7 +19,7 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
   const [otpField, setOtpField] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [token, setToken] = useState<string | null>(null);
-
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -312,8 +313,21 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
               {isLogin ? 'Register' : 'Login'}
             </button>
           </p>
+          {/* Forgot Password Button */}
+          {isLogin && (
+            <div className="text-center mt-2">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-red-500 hover:underline"
+              >
+                Forgot Password?
+              </button>
+            </div>
+          )}
         </form>
       </div>
+      {showForgotPassword && <ForgotPassword onClose={() => setShowForgotPassword(false)} />}
     </div>
   );
 }
