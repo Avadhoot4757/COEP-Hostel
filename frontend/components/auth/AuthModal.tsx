@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface AuthModalProps {
   isLogin: boolean;
@@ -18,6 +19,8 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
   const [otpField, setOtpField] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [token, setToken] = useState<string | null>(null);
+  const router = useRouter();
+
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -105,29 +108,42 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
           }),
         });
         
-        const data = await response.json();
-        console.log("Registration response:", data);
-        
+        // Check if the response is OK before trying to parse JSON
         if (!response.ok) {
-          // Handle API errors
-          if (data.student) {
-            setErrors({ form: data.student });
-            return;
-          } else if (data.password) {
-            setErrors({ form: data.password });
-            return;
-          } else if (data.errors) {
-            setErrors(data.errors);
-            return;
-          } else if (data.error) {
-            setErrors({ form: data.error });
-            return;
-          } else if (data.detail) {
-            setErrors({ form: data.detail });
+          if (response.status === 500) {
+            console.error('Server error:', response.status);
+            setErrors({ form: "Server error occurred. The system might be experiencing database issues. Please contact an administrator." });
             return;
           }
-          throw new Error(data.message || 'Failed to request OTP');
+          
+          // For other error codes, try to parse JSON response
+          try {
+            const data = await response.json();
+            let errorMessage = "Failed to request OTP. ";
+            
+            if (data.student) {
+              setErrors({ form: errorMessage + data.student });
+            } else if (data.password) {
+              setErrors({ form: errorMessage + data.password });
+            } else if (data.errors) {
+              setErrors({ form: errorMessage + JSON.stringify(data.errors) });
+            } else if (data.error) {
+              setErrors({ form: errorMessage + data.error });
+            } else if (data.detail) {
+              setErrors({ form: errorMessage + data.detail });
+            } else {
+              setErrors({ form: errorMessage + (data.message || "Unknown error") });
+            }
+          } catch (parseError) {
+            console.error('Error parsing response:', parseError);
+            setErrors({ form: "Couldn't parse server response. Please try again later." });
+          }
+          return;
         }
+        
+        // Only try to parse JSON if the response was successful
+        const data = await response.json();
+        console.log("Registration response:", data);
         
         // Show OTP field if request was successful
         setOtpField(true);
@@ -149,7 +165,7 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
         // Handle login
         url = 'http://127.0.0.1:8000/auth/login/';
         requestData = {
-          mis: formData.get('mis'),
+          username: formData.get('mis'),
           password: formData.get('password')
         };
       } else {
@@ -172,6 +188,7 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
       });
       
       const data = await response.json();
+      console.log("Login Response data:", data);
       
       if (!response.ok) {
         // Handle error response from Django
@@ -183,19 +200,20 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
       }
       
       // Handle successful response
-      if (data.token) {
+      if (data.tokens && data.tokens.access) {
+        console.log('Token:', data.token);
         // Use the login function from your context
-        login(data.token, data.user || { 
+        login(data.tokens.access, data.user || { 
           username: formData.get('mis') as string
           // You can add more user properties here if needed
         });
+        // Optional: Show success message
+        alert(isLogin ? 'Login successful!' : 'Registration successful!');
         
         // Close the modal
         onClose();
-        
-        // Optional: Show success message
-        alert(isLogin ? 'Login successful!' : 'Registration successful!');
-      }
+        router.push('/landing');
+        }
       
     } catch (error) {
       console.error('Authentication error:', error);
