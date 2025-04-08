@@ -19,5 +19,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('auth/', include('authentication.urls')),  # Adjust app name if needed
+    path('auth/', include('authentication.urls')),
+    path('allot/', include('allotment.urls')),
+    path('adminrole/', include('adminrole.urls')),
 ]
