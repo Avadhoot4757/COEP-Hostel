@@ -17,7 +17,7 @@ import { Engine } from 'tsparticles-engine';
 
 export default function Home() {
   const [showAuth, setShowAuth] = useState(false);
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true); // Change this to true
 
   const particlesInit = async (engine:Engine) => {
     try {
@@ -48,6 +48,10 @@ export default function Home() {
       <Navbar 
         onRegisterClick={() => {
           setIsLogin(false);
+          setShowAuth(true);
+        }}
+        onLoginClick={() => {  // Add this prop
+          setIsLogin(true);
           setShowAuth(true);
         }}
       />

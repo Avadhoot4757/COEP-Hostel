@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 
 interface NavbarProps {
   onRegisterClick: () => void;
+  onLoginClick: () => void; // Add this
 }
 
-export default function Navbar({ onRegisterClick }: NavbarProps) {
+export default function Navbar({ onRegisterClick, onLoginClick }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -48,6 +49,12 @@ export default function Navbar({ onRegisterClick }: NavbarProps) {
             >
               Register
             </Button>
+            <Button
+              onClick={onLoginClick}
+              className="bg-[#ff3333] hover:bg-[#cc0000] text-white"
+            >
+              Login
+            </Button>
           </div>
         </div>
 
@@ -71,6 +78,15 @@ export default function Navbar({ onRegisterClick }: NavbarProps) {
               className="w-full bg-[#ff3333] hover:bg-[#cc0000] text-white"
             >
               Register
+            </Button>
+            <Button
+              onClick={() => {
+                onLoginClick();
+                setMobileMenuOpen(false);
+              }}
+              className="w-full bg-gray-900 hover:bg-gray-700 text-white"
+            >
+              Login
             </Button>
           </div>
         </div>
