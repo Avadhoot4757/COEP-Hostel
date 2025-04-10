@@ -50,7 +50,7 @@ export default function Home() {
           setIsLogin(false);
           setShowAuth(true);
         }}
-        onLoginClick={() => {  // Add this prop
+        onLoginClick={() => { 
           setIsLogin(true);
           setShowAuth(true);
         }}
