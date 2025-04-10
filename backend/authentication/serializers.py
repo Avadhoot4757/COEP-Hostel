@@ -1,7 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
-from .models import StudentMain
+from .models import StudentMain, StudentDataEntry
+
+class StudentDataEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentDataEntry
+        fields = '__all__'  # Includes all fields from the model
+
 
 class SignupSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)

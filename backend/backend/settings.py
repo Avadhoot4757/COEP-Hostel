@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'authentication',
     'corsheaders',
     'allotment',
+    'adminrole',
     'rest_framework'
 ]
 
