@@ -84,7 +84,7 @@ export default function Navbar({ onRegisterClick, onLoginClick }: NavbarProps) {
                 onLoginClick();
                 setMobileMenuOpen(false);
               }}
-              className="w-full bg-gray-900 hover:bg-gray-700 text-white"
+              className="w-full bg-[#ff3333] hover:bg-[#cc0000] text-white"
             >
               Login
             </Button>
