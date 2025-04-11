@@ -15,7 +15,11 @@ import Rules from "@/components/home/Rules";
 import AuthModal from "@/components/auth/AuthModal";
 import { Engine } from 'tsparticles-engine';
 
+import { useRouter } from 'next/navigation';
+
+
 export default function Home() {
+  const router = useRouter();
   const [showAuth, setShowAuth] = useState(false);
   const [isLogin, setIsLogin] = useState(false);
 
@@ -55,7 +59,8 @@ export default function Home() {
       <Hero 
         onApplyClick={() => {
           setIsLogin(false);
-          setShowAuth(true);
+          router.push('/applicationform');
+          
         }}
       />
 
