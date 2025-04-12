@@ -8,11 +8,10 @@ class CustomUser(AbstractUser):
         ('rector', 'Rector'),
     )
     user_type = models.CharField(max_length=10, choices=USER_TYPES, default='student')
-    email = models.EmailField(unique=True)  # Ensures unique email for all users
+    email = models.EmailField(unique=True)
 
     def __str__(self):
         return f"{self.username} ({self.user_type})"
-
 
 class Gender(models.Model):
     gender = models.CharField(max_length=20, unique=True, primary_key=True)
@@ -74,6 +73,8 @@ class StudentDataEntry(models.Model):
     verified = models.BooleanField(null=True, default=None)
 
 class StudentMain(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="student_profile", null=True)
+    
     personal_mail = models.EmailField(unique=True, null=True)
     college_mail = models.EmailField(null=True, blank=True)
     first_name = models.CharField(max_length=100)
@@ -87,11 +88,11 @@ class StudentMain(models.Model):
     roll_no = models.CharField(max_length=20, unique=True, primary_key=True)
     rank = models.IntegerField(null=True, blank=True)
     caste = models.ForeignKey(Caste, on_delete=models.DO_NOTHING)
-    pwd = models.BooleanField(default=False)
-    creamy_layer = models.BooleanField(default=False)
-    parent_name = models.CharField(max_length=100)
-    parent_contact = models.CharField(max_length=15)
-    permanent_address = models.TextField()
+    pwd = models.BooleanField(default=False, null=True)
+    creamy_layer = models.BooleanField(default=False, null=True)
+    parent_name = models.CharField(max_length=100, null=True)
+    parent_contact = models.CharField(max_length=15, null=True)
+    permanent_address = models.TextField(null=True)
     local_guardian_name = models.CharField(max_length=100, null=True, blank=True)
     local_guardian_contact = models.CharField(max_length=15, null=True, blank=True)
     local_guardian_address = models.TextField(null=True, blank=True)
@@ -101,3 +102,4 @@ class StudentMain(models.Model):
     pwd_certificate = models.CharField(max_length=255, null=True, blank=True)
     non_creamy_layer_certificate = models.CharField(max_length=255, null=True, blank=True)
     gender = models.ForeignKey(Gender, on_delete=models.DO_NOTHING)
+

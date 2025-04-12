@@ -1,103 +1,111 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 
-// Define the shape of the auth context
-interface AuthContextType {
-  isAuthenticated: boolean;
-  user: any | null; // You can create a proper user type based on your backend
-  login: (token: string, userData: any) => void;
-  logout: () => void;
-  token: string | null;
-  loading: boolean;
+interface User {
+  username: string;
 }
 
-// Create the context with default values
-const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  user: null,
-  login: () => {},
-  logout: () => {},
-  token: null,
-  loading: true,
-});
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  login: (userData: User) => void;
+  logout: () => void;
+  checkAuth: () => Promise<boolean>;
+}
 
-// Custom hook to use the auth context
-export const useAuth = () => useContext(AuthContext);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<any | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Check for existing token on mount
-  useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
-    if (storedToken) {
-      setToken(storedToken);
-      fetchUserData(storedToken);
-    } else {
-      setLoading(false);
-    }
-  }, []);
-  
-  // Fetch user data when token is available
-  const fetchUserData = async (authToken: string) => {
+  const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
+  const [isLoggedOut, setIsLoggedOut] = useState(false); // New flag
+  const router = useRouter();
+
+  const login = (userData: User) => {
+    setUser(userData);
+    setHasAttemptedLogin(true);
+    setIsLoggedOut(false); // Reset on login
+    setLoading(false);
+  };
+
+  const logout = async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8000/auth/user/', {
-        headers: {
-          'Authorization': `Token ${authToken}`,
-        },
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        // If token is invalid, clear it
-        logout();
-      }
+      await api.post("/auth/logout/");
     } catch (error) {
-      console.error('Error fetching user data:', error);
-      logout();
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+      setHasAttemptedLogin(false);
+      setIsLoggedOut(true); // Mark as logged out
+      setLoading(false);
+      alert("Logout successful!");
+      router.push("/"); // Include auth=login as per your flow
+    }
+  };
+
+  const checkAuth = async (): Promise<boolean> => {
+    if (isLoggedOut) return false; // Skip if logged out
+    try {
+      const response = await api.get("/auth/user/");
+      setUser(response.data);
+      setHasAttemptedLogin(true);
+      return true;
+    } catch (error) {
+      console.error("Check auth error:", error);
+      setUser(null);
+      return false;
     } finally {
       setLoading(false);
     }
   };
-  
-  // Login function
-  const login = (authToken: string, userData: any) => {
-    localStorage.setItem('authToken', authToken);
-    setToken(authToken);
-    setUser(userData);
+
+  useEffect(() => {
+    const protectedRoutes = ["/dashboard", "/invites", "/students", "/rooms"];
+    const isProtectedRoute = protectedRoutes.some((route) =>
+      window.location.pathname.startsWith(route)
+    );
+
+    if (isProtectedRoute && !hasAttemptedLogin && !isLoggedOut) {
+      const initAuth = async () => {
+        await checkAuth();
+      };
+      initAuth();
+    } else {
+      setLoading(false);
+    }
+  }, [hasAttemptedLogin, isLoggedOut]);
+
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    loading,
+    login,
+    logout,
+    checkAuth,
   };
-  
-  // Logout function
-  const logout = () => {
-    localStorage.removeItem('authToken');
-    setToken(null);
-    setUser(null);
-  };
-  
-  return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated: !!token,
-        user,
-        login,
-        logout,
-        token,
-        loading,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export default AuthContext;
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};

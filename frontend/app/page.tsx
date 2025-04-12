@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from "react";
 import Particles from "react-tsparticles";
 import { loadFull } from "tsparticles";
 import { particlesConfig } from "@/utils/particles-config";
-
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import Hero from "@/components/home/Hero";
@@ -13,19 +12,29 @@ import Amenities from "@/components/home/Amenities";
 import Testimonials from "@/components/home/Testimonials";
 import Rules from "@/components/home/Rules";
 import AuthModal from "@/components/auth/AuthModal";
-import { Engine } from 'tsparticles-engine';
+import { Engine } from "tsparticles-engine";
+import { useSearchParams } from "next/navigation";
 
 export default function Home() {
   const [showAuth, setShowAuth] = useState(false);
-  const [isLogin, setIsLogin] = useState(true); // Change this to true
+  const [isLogin, setIsLogin] = useState(true);
+  const searchParams = useSearchParams();
 
-  const particlesInit = async (engine:Engine) => {
+  const particlesInit = async (engine: Engine) => {
     try {
       await loadFull(engine);
     } catch (error) {
       console.error("Error initializing particles:", error);
     }
   };
+
+  useEffect(() => {
+    if (searchParams.get("auth") === "login") {
+      setIsLogin(true);
+      setShowAuth(true);
+      window.history.replaceState(null, "", "/");
+    }
+  }, [searchParams]);
 
   return (
     <main className="min-h-screen bg-transparent">
@@ -38,25 +47,21 @@ export default function Home() {
       </div>
 
       {showAuth && (
-        <AuthModal 
-          isLogin={isLogin} 
-          setIsLogin={setIsLogin} 
-          onClose={() => setShowAuth(false)} 
+        <AuthModal
+          isLogin={isLogin}
+          setIsLogin={setIsLogin}
+          onClose={() => setShowAuth(false)}
         />
       )}
 
-      <Navbar 
-        onRegisterClick={() => {
-          setIsLogin(false);
-          setShowAuth(true);
-        }}
-        onLoginClick={() => { 
+      <Navbar
+        onLoginClick={() => {
           setIsLogin(true);
           setShowAuth(true);
         }}
       />
 
-      <Hero 
+      <Hero
         onApplyClick={() => {
           setIsLogin(false);
           setShowAuth(true);

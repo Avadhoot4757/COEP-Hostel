@@ -6,6 +6,7 @@ import { Menu, Home } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard" },
@@ -16,6 +17,7 @@ const navigation = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   return (
     <div className="border-b">
@@ -71,7 +73,11 @@ export function Navbar() {
         </Sheet>
 
         <div className="ml-auto">
-          <Button variant="destructive" size="sm">
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => logout()}
+          >
             Logout
           </Button>
         </div>

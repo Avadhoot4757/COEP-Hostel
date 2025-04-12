@@ -46,7 +46,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ params }) => {
 
       if (response.ok) {
         setMessage("Password reset successfully! Redirecting to login...");
-        setTimeout(() => router.push("/login"), 3000);
+        setTimeout(() => router.push("/?auth=login"), 3000);
       } else {
         setError(data.error || "Invalid or expired link.");
       }
