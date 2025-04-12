@@ -15,7 +15,11 @@ import AuthModal from "@/components/auth/AuthModal";
 import { Engine } from "tsparticles-engine";
 import { useSearchParams } from "next/navigation";
 
+import { useRouter } from 'next/navigation';
+
+
 export default function Home() {
+  const router = useRouter();
   const [showAuth, setShowAuth] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const searchParams = useSearchParams();
@@ -64,7 +68,8 @@ export default function Home() {
       <Hero
         onApplyClick={() => {
           setIsLogin(false);
-          setShowAuth(true);
+          router.push('/applicationform');
+          
         }}
       />
 
