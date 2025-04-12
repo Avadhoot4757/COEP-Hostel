@@ -1,12 +1,27 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
-from .models import StudentMain, StudentDataEntry
+from .models import StudentMain, StudentDataEntry, Branch, AdmissionCategory, Caste
 
 class StudentDataEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentDataEntry
         fields = '__all__'  # Includes all fields from the model
+
+class BranchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Branch
+        fields = '__all__'
+
+class AdmissionCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdmissionCategory
+        fields = '__all__'
+
+class CasteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Caste
+        fields = '__all__'
 
 
 class SignupSerializer(serializers.Serializer):

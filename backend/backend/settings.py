@@ -175,6 +175,5 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'djangoproject24@gmail.com'
 EMAIL_HOST_PASSWORD = 'izkb yqsh bviy ptta'
 
-
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

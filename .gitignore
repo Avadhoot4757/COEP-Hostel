@@ -11,6 +11,7 @@ env/
 venv/
 myenv/
 env/
+backend/media
     
 # Django
 db.sqlite3

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm, FormProvider } from "react-hook-form"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/applicationform/ui/card"
 import { Input } from "@/components/applicationform/ui/input"
@@ -15,6 +15,35 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 
 const MultiStepForm = () => {
+  const [branches, setBranches] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [castes, setCastes] = useState([]);
+  useEffect(() => {
+    const fetchDropdownOptions = async () => {
+      try {
+        const [branchesRes, categoriesRes, castesRes] = await Promise.all([
+          fetch("http://localhost:8000/auth/branches/"),
+          fetch("http://localhost:8000/auth/admissioncategories/"),
+          fetch("http://localhost:8000/auth/castes/"),
+        ]);
+  
+        const [branchesData, categoriesData, castesData] = await Promise.all([
+          branchesRes.json(),
+          categoriesRes.json(),
+          castesRes.json(),
+        ]);
+        
+        setBranches(branchesData);
+        setCategories(categoriesData);
+        setCastes(castesData);
+      } catch (error) {
+        console.error("Error fetching dropdown options:", error);
+      }
+    };
+  
+    fetchDropdownOptions();
+  }, []);
+  
   const router = useRouter();
   const method = useForm({mode: "all"})
   const {
@@ -27,10 +56,10 @@ const MultiStepForm = () => {
   } = method;
 
   const [step, setStep] = useState(1)
-  const category = watch("category", "")
+  const caste = watch("caste", "")
 
-  // Get the total number of steps for the selected category
-  const totalSteps = category === "OPEN" || category === "EWS" ? 4 : 5
+  // Get the total number of steps for the selected caste
+  const totalSteps = caste === "OPEN" || caste === "EWS" ? 4 : 5
 
   // Calculate progress percentage
   const progressPercentage = (step / totalSteps) * 100
@@ -38,41 +67,41 @@ const MultiStepForm = () => {
   // Step titles
   const getStepTitle = (stepNumber) => {
     if (stepNumber === 1) return "Basic Details"
-    if (category !== "OPEN" && category !== "EWS" && stepNumber === 2) return "Caste Details"
+    if (caste !== "OPEN" && caste !== "EWS" && stepNumber === 2) return "Caste Details"
     if (stepNumber === totalSteps - 2) return "Extra Details"
     if (stepNumber === totalSteps - 1) return "Parents' Information"
     if (stepNumber === totalSteps) return "Documents"
     return `Step ${stepNumber}`
   }
 
-  const sendDataToBackend = async (data) => {
+  const sendDataToBackend = async (formValues: Record<string, any>) => {
     try {
-      console.log("Sending data", data)
+      
 
       const formData = new FormData()
 
-      // Append all non-file fields
-      Object.keys(data).forEach((key) => {
-        if (key !== "files") {
-          formData.append(key, data[key])
+      // Append each field to FormData
+      Object.entries(formValues).forEach(([key, value]) => {
+        if (value instanceof File) {
+          formData.append(key, value); // Single file
+        } else if (Array.isArray(value) && value[0] instanceof File) {
+          value.forEach((file, idx) => {
+            console.log("inside multiple");
+            formData.append(`${key}[${idx}]`, file); // Multiple files (if needed)
+          });
+        } else if (value !== undefined && value !== null) {
+          formData.append(key, value); // Regular field
         }
-      })
+      });
 
-      // Append all file fields
-      if (data.files) {
-        data.files.forEach((file, index) => {
-          formData.append(`files[${index}]`, file)
-        })
-      }
-
-      /*const response = await fetch("http://localhost:8000/auth/apply/", {
+      const response = await fetch("http://localhost:8000/auth/apply/", {
         method: "POST",
         body: formData,
       });
 
       if(!response.ok){
         throw new Error(`Server responded with status ${response.status}`);
-      }*/
+      }
 
       console.log("Data sent successfully!")
       return true;
@@ -84,23 +113,27 @@ const MultiStepForm = () => {
   }
 
   // Handle form submission
-  const onSubmit = async (formData) => {
+  const onSubmit = async (formData: Record<string, any>) => {
     const confirmSubmit = window.confirm("Are you sure you want to submit the form?")
 
-    if (!confirmSubmit) {
-      return
+    if (!confirmSubmit) return;
+
+    console.log("Sending data", formData);
+
+    const processedData: Record<string, any> = { ...formData };
+
+    for (const key in processedData) {
+      const value = processedData[key];
+      if (value instanceof FileList) {
+        processedData[key] = Array.from(value); // Convert FileList to Array
+      }
     }
 
-    const finalData = {
-      ...formData,
-      files: formData.files ? Array.from(formData.files) : [],
-    }
-
-    const success = await sendDataToBackend(finalData);
+    const success = await sendDataToBackend(processedData);
 
     if (success){
       toast.success("Form submitted successfully!");
-      router.push("/"); 
+      //router.push("/"); 
     }
     else {
       toast.error("Failed to submit form. Please try again.");
@@ -115,7 +148,7 @@ const MultiStepForm = () => {
       return
     }
 
-    if (step === 1 && !category) {
+    if (step === 1 && !caste) {
       return
     }
 
@@ -166,29 +199,55 @@ const MultiStepForm = () => {
             {step === 1 && (
               <div className="space-y-4">
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="name">
-                      Full Name
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                    <Label className="text-gray-700" htmlFor="first_name">
+                      First Name
                     </Label>
                     <Input
-                      id="name"
-                      placeholder="Enter your full name"
+                      id="first_name"
+                      placeholder="Enter your first name"
                       className="bg-white text-black border border-gray-300"
-                      {...register("name", { required: "Name is required" })}
+                      {...register("first_name", { required: "First name is required" })}
                     />
-                    {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                    {errors.first_name && <p className="text-sm text-red-500">{errors.first_name.message}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="mis">
+                    <Label className="text-gray-700" htmlFor="middle_name">
+                      Middle Name
+                    </Label>
+                    <Input
+                      id="middle_name"
+                      placeholder="Enter your middle name"
+                      className="bg-white text-black border border-gray-300"
+                      {...register("middle_name", { required: "Middle name is required" })}
+                    />
+                    {errors.middle_name && <p className="text-sm text-red-500">{errors.middle_name.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-gray-700" htmlFor="last_name">
+                      Last Name
+                    </Label>
+                    <Input
+                      id="last_name"
+                      placeholder="Enter your last name"
+                      className="bg-white text-black border border-gray-300"
+                      {...register("last_name", { required: "Last name is required" })}
+                    />
+                    {errors.last_name && <p className="text-sm text-red-500">{errors.last_name.message}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-gray-700" htmlFor="roll_no">
                       MIS Number
                     </Label>
                     <Input
-                      id="mis"
+                      id="roll_no"
                       placeholder="9-digit MIS number"
                       className="bg-white text-black border border-gray-300"
-                      {...register("mis", {
+                      {...register("roll_no", {
                         required: "MIS Number is required",
                         pattern: {
                           value: /^[0-9]{9}$/,
@@ -196,7 +255,7 @@ const MultiStepForm = () => {
                         },
                       })}
                     />
-                    {errors.mis && <p className="text-sm text-red-500">{errors.mis.message}</p>}
+                    {errors.roll_no && <p className="text-sm text-red-500">{errors.roll_no.message}</p>}
                   </div>
                 </div>
 
@@ -233,14 +292,14 @@ const MultiStepForm = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="mobile">
+                    <Label className="text-gray-700" htmlFor="mobile_number">
                       Student Mobile Number
                     </Label>
                     <Input
-                      id="mobile"
+                      id="mobile_number"
                       placeholder="10-digit mobile number"
                       className="bg-white text-black border border-gray-300"
-                      {...register("mobile", {
+                      {...register("mobile_number", {
                         required: "Mobile number is required",
                         pattern: {
                           value: /^[0-9]{10}$/,
@@ -248,14 +307,14 @@ const MultiStepForm = () => {
                         },
                       })}
                     />
-                    {errors.mobile && <p className="text-sm text-red-500">{errors.mobile.message}</p>}
+                    {errors.mobile_number && <p className="text-sm text-red-500">{errors.mobile_number.message}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="class">
+                    <Label className="text-gray-700" htmlFor="class_name">
                       Class
                     </Label>
-                    <Select onValueChange={(value) => {setValue("class", value);trigger("class");}} defaultValue={watch("class")}>
+                    <Select onValueChange={(value) => {setValue("class_name", value);trigger("class_name");}} defaultValue={watch("class_name")}>
                       <SelectTrigger className="bg-white text-black border border-gray-300">
                         <SelectValue placeholder="Select Class" />
                       </SelectTrigger>
@@ -266,8 +325,8 @@ const MultiStepForm = () => {
                         <SelectItem className="hover:bg-gray-200" value="btech">Final Year</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input type="hidden" {...register("class", { required: "Class is required" })} />
-                    {errors.class && <p className="text-sm text-red-500">{errors.class.message}</p>}
+                    <Input type="hidden" {...register("class_name", { required: "Class is required" })} />
+                    {errors.class_name && <p className="text-sm text-red-500">{errors.class_name.message}</p>}
                   </div>
                 </div>
 
@@ -282,7 +341,7 @@ const MultiStepForm = () => {
                       </SelectTrigger>
                       <SelectContent className="bg-white text-black border border-gray-300 ">
                         <SelectItem className="hover:bg-gray-200" value="civil">Civil</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="cs">Computer Science</SelectItem>
+                        <SelectItem className="hover:bg-gray-200" value="COMPUTER">Computer Science</SelectItem>
                         <SelectItem className="hover:bg-gray-200" value="entc">Electronics & Telecommunication</SelectItem>
                         <SelectItem className="hover:bg-gray-200" value="electrical">Electrical</SelectItem>
                         <SelectItem className="hover:bg-gray-200" value="instru">Instrumentation</SelectItem>
@@ -296,10 +355,10 @@ const MultiStepForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="category">
+                    <Label className="text-gray-700" htmlFor="caste">
                       Category
                     </Label>
-                    <Select onValueChange={(value) => {setValue("category", value); trigger("category");}} defaultValue={watch("category")}>
+                    <Select onValueChange={(value) => {setValue("caste", value); trigger("caste");}} defaultValue={watch("caste")}>
                       <SelectTrigger className="bg-white text-black border border-gray-300">
                         <SelectValue placeholder="Select Category" />
                       </SelectTrigger>
@@ -317,8 +376,8 @@ const MultiStepForm = () => {
                         <SelectItem className="hover:bg-gray-200" value="EWS">EWS</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input type="hidden" {...register("category", { required: "Category is required" })} />
-                    {errors.category && <p className="text-sm text-red-500">{errors.category.message}</p>}
+                    <Input type="hidden" {...register("caste", { required: "Category is required" })} />
+                    {errors.caste && <p className="text-sm text-red-500">{errors.caste.message}</p>}
                   </div>
                 </div>
 
@@ -343,14 +402,14 @@ const MultiStepForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="personalEmail">
+                    <Label className="text-gray-700" htmlFor="personal_mail">
                       Personal Mail ID
                     </Label>
                     <Input
-                      id="personalEmail"
+                      id="personal_mail"
                       placeholder="example@gmail.com"
                       className="bg-white text-black border border-gray-300"
-                      {...register("personalEmail", {
+                      {...register("personal_mail", {
                         required: "Personal Email is required",
                         pattern: {
                           value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z]+\.[a-zA-Z]{2,}$/,
@@ -358,16 +417,16 @@ const MultiStepForm = () => {
                         },
                       })}
                     />
-                    {errors.personalEmail && <p className="text-sm text-red-500">{errors.personalEmail.message}</p>}
+                    {errors.personal_mail && <p className="text-sm text-red-500">{errors.personal_mail.message}</p>}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="bloodGroup">
+                    <Label className="text-gray-700" htmlFor="blood_group">
                       Blood Group
                     </Label>
-                    <Select onValueChange={(value) => {setValue("bloodGroup", value); trigger("bloodGroup");}} defaultValue={watch("bloodGroup")}>
+                    <Select onValueChange={(value) => {setValue("blood_group", value); trigger("blood_group");}} defaultValue={watch("blood_group")}>
                       <SelectTrigger className="bg-white text-black border border-gray-300">
                         <SelectValue placeholder="Select Blood Group" />
                       </SelectTrigger>
@@ -382,8 +441,8 @@ const MultiStepForm = () => {
                         <SelectItem className="hover:bg-gray-200" value="AB-">AB-</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input type="hidden" {...register("bloodGroup", { required: "Blood Group is required" })} />
-                    {errors.bloodGroup && <p className="text-sm text-red-500">{errors.bloodGroup.message}</p>}
+                    <Input type="hidden" {...register("blood_group", { required: "Blood Group is required" })} />
+                    {errors.blood_group && <p className="text-sm text-red-500">{errors.blood_group.message}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -423,7 +482,7 @@ const MultiStepForm = () => {
                   </div>
                 </div>
 
-                {watch("category") === "EWS" && (
+                {watch("caste") === "EWS" && (
                   /*<div className="space-y-2">
                     <Label className="text-gray-700" htmlFor="ewscertificate">
                       EWS Certificate
@@ -445,15 +504,15 @@ const MultiStepForm = () => {
                     <Input type="hidden" {...register("ewscertificate", { required: "EWS certificate is required" })} />
                     {errors.ewscertificate && <p className="text-sm text-red-500">{errors.ewscertificate.message}</p>}
                   </div>*/
-                  <FileUploadField name="ewscertificate" label="EWS Certificate" />
+                  <FileUploadField name="ews_certificate" label="EWS Certificate" />
                 )}
               </div>
             )}
 
-            {/* Category-Specific Steps */}
-            {step > 1 && step < totalSteps && category && (
+            {/* caste-Specific Steps */}
+            {step > 1 && step < totalSteps && caste && (
               <div>
-                {category !== "OPEN" && category !== "EWS" && step === 2 && (
+                {caste !== "OPEN" && caste !== "EWS" && step === 2 && (
                   <div className="space-y-4">
                     <div className="space-y-2">
                       {/*
@@ -478,7 +537,7 @@ const MultiStepForm = () => {
                         <p className="text-sm text-red-500">{errors.castecertificate.message}</p>
                       )}
                       */}
-                      <FileUploadField name="castecertificate" label="Caste Certificate" />
+                      <FileUploadField name="caste_certificate" label="Caste Certificate" />
                     </div>
 
                     <div className="space-y-2">
@@ -498,7 +557,7 @@ const MultiStepForm = () => {
                       <Input type="hidden" {...register("castevalidity", { required: "This field is required" })} />
                       {errors.castevalidity && <p className="text-sm text-red-500">{errors.castevalidity.message}</p>}
                     */}
-                    <FileUploadField name="castevalidity" label="Caste Validity certificate / Tribe Validity certificate" />
+                    <FileUploadField name="caste_validity_certificate" label="Caste Validity certificate / Tribe Validity certificate" />
                     </div>
 
                     <div className="space-y-2">
@@ -519,23 +578,23 @@ const MultiStepForm = () => {
                       {errors.incomecertificate && (
                         <p className="text-sm text-red-500">{errors.incomecertificate.message}</p>
                       )}*/}
-                      <FileUploadField name="incomecertificate" label="Income certificate" />
+                      <FileUploadField name="income_certificate" label="Income certificate" />
                     </div>
 
                     <div className="space-y-2">
                       <Label className="text-gray-700">Belongs to Non-Creamy Layer Certificate</Label>
                       <RadioGroup
                         
-                        onValueChange={(value) =>  {setValue("non_creamylayer", value); trigger("non_creamylayer");}} defaultValue={watch("non_creamylayer")}>
+                        onValueChange={(value) =>  {setValue("creamy_layer", value); trigger("creamy_layer");}} defaultValue={watch("creamy_layer")}>
                         <div className="flex space-x-4">
                           <div className="flex text-black items-center space-x-2">
                             <RadioGroupItem
                             className="bg-white text-black"
                               value="yes"
-                              id="non_creamylayer-yes"
+                              id="creamy_layer-yes"
                               
                             />
-                            <Label className="text-gray-700" htmlFor="non_creamylayer-yes">
+                            <Label className="text-gray-700" htmlFor="creamy_layer-yes">
                               Yes
                             </Label>
                           </div>
@@ -543,22 +602,22 @@ const MultiStepForm = () => {
                             <RadioGroupItem
                               className="bg-white text-black"
                               value="no"
-                              id="non_creamylayer-no"
+                              id="creamy_layer-no"
                               
                             />
-                            <Label className="text-gray-700" htmlFor="non_creamylayer-no">
+                            <Label className="text-gray-700" htmlFor="creamy_layer-no">
                               No
                             </Label>
                           </div>
                         </div>
                       </RadioGroup>
-                      <Input type="hidden" {...register("non_creamylayer", { required: "Field is required" })} />
-                      {errors.non_creamylayer && (
-                        <p className="text-sm text-red-500">{errors.non_creamylayer.message}</p>
+                      <Input type="hidden" {...register("creamy_layer", { required: "Field is required" })} />
+                      {errors.creamy_layer && (
+                        <p className="text-sm text-red-500">{errors.creamy_layer.message}</p>
                       )}
                     </div>
 
-                    {watch("non_creamylayer") === "yes" && (
+                    {watch("creamy_layer") === "yes" && (
                       <div className="space-y-2">
                         {/*
                         <Label className="text-gray-700" htmlFor="non_creamylayercertificate">
@@ -581,7 +640,7 @@ const MultiStepForm = () => {
                         {errors.non_creamylayercertificate && (
                           <p className="text-sm text-red-500">{errors.non_creamylayercertificate.message}</p>
                         )}*/}
-                        <FileUploadField name="non_creamylayercertificate" label="Non-Creamy Layer Certificate (valid up to 31st March 2025)"/>
+                        <FileUploadField name="non_creamy_layer_certificate" label="Non-Creamy Layer Certificate (valid up to 31st March 2025)"/>
                       </div>
                     )}
                   </div>
@@ -593,10 +652,10 @@ const MultiStepForm = () => {
             {step === totalSteps - 2 && (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-gray-700" htmlFor="belongsto">
+                  <Label className="text-gray-700" htmlFor="admission_category">
                     Whether belongs to:
                   </Label>
-                  <Select onValueChange={(value) => {setValue("belongsto", value); trigger("belongsto");}} defaultValue={watch("belongsto")}>
+                  <Select onValueChange={(value) => {setValue("admission_category", value); trigger("admission_category");}} defaultValue={watch("admission_category")}>
                     <SelectTrigger className="bg-white text-black border border-gray-300">
                       <SelectValue placeholder="Select option" />
                     </SelectTrigger>
@@ -610,40 +669,40 @@ const MultiStepForm = () => {
                       <SelectItem className="hover:bg-gray-200" value="NA">Not Applicable</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input type="hidden" {...register("belongsto", { required: "Select one option" })} />
-                  {errors.belongsto && <p className="text-sm text-red-500">{errors.belongsto.message}</p>}
+                  <Input type="hidden" {...register("admission_category", { required: "Select one option" })} />
+                  {errors.admission_category && <p className="text-sm text-red-500">{errors.admission_category.message}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label className="text-gray-700">Belongs to Orphan Candidate</Label>
                   <RadioGroup
                     
-                    onValueChange={(value) => {setValue("orphancandidate", value); trigger("orphancandidate");}} defaultValue={watch("orphancandidate")}>
+                    onValueChange={(value) => {setValue("orphan", value); trigger("orphan");}} defaultValue={watch("orphan")}>
                     <div className="flex space-x-4">
                       <div className="flex text-black items-center space-x-2">
                         <RadioGroupItem
                           value="yes"
-                          id="orphancandidate-yes"
+                          id="orphan-yes"
                         />
-                        <Label className="text-gray-700" htmlFor="orphancandidate-yes">
+                        <Label className="text-gray-700" htmlFor="orphan-yes">
                           Yes
                         </Label>
                       </div>
                       <div className="flex text-black items-center space-x-2">
                         <RadioGroupItem
                           value="no"
-                          id="orphancandidate-no"
+                          id="orphan-no"
 
                         />
-                        <Label className="text-gray-700" htmlFor="orphancandidate-no">
+                        <Label className="text-gray-700" htmlFor="orphan-no">
                           No
                         </Label>
                       </div>
                     </div>
                   </RadioGroup>
-                  <Input type="hidden" {...register("orphancandidate", { required: "This field is required" })} />
+                  <Input type="hidden" {...register("orphan", { required: "This field is required" })} />
                   
-                  {errors.orphancandidate && <p className="text-sm text-red-500">{errors.orphancandidate.message}</p>}
+                  {errors.orphan && <p className="text-sm text-red-500">{errors.orphan.message}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -699,7 +758,7 @@ const MultiStepForm = () => {
                     )}
                     </div>*/
                     
-                    <FileUploadField name="pwdcertificate" label="Person with Disability Candidate Certificate" />
+                    <FileUploadField name="pwd_certificate" label="Person with Disability Candidate Certificate" />
                 )}
               </div>
             )}
@@ -827,16 +886,16 @@ const MultiStepForm = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-gray-700" htmlFor="local_address">
+                  <Label className="text-gray-700" htmlFor="local_guardian_address">
                     Local address
                   </Label>
                   <Input
-                    id="local_address"
+                    id="local_guardian_address"
                     placeholder="Enter local address"
                     className="bg-white text-black border border-gray-300"
-                    {...register("local_address", { required: "Local address is required" })}
+                    {...register("local_guardian_address", { required: "Local address is required" })}
                   />
-                  {errors.local_address && <p className="text-sm text-red-500">{errors.local_address.message}</p>}
+                  {errors.local_guardian_address && <p className="text-sm text-red-500">{errors.local_guardian_address.message}</p>}
                 </div>
 
                 <div className="space-y-2">

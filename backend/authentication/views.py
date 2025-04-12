@@ -7,8 +7,8 @@ from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework import status, viewsets
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -17,21 +17,36 @@ from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.urls import reverse
-from .serializers import (
-    SignupSerializer,
-    OTPVerificationSerializer,
-    LoginSerializer,
-    StudentDataEntrySerializer,
-    PasswordResetSerializer,
-    PasswordResetConfirmSerializer,
-)
-from .models import StudentDataEntry
-from datetime import datetime
-from datetime import timedelta
+from .serializers import *
+from .models import *
+from datetime import datetime   
+from datetime import timedelta   
 from django.core.cache import cache
+from django.utils.timezone import now
+from rest_framework.response import Response
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+import random, uuid
+from rest_framework.parsers import FormParser, MultiPartParser
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
 CustomUser = get_user_model()
 
+class BranchViewSet(viewsets.ModelViewSet):
+    queryset = Branch.objects.all()
+    serializer_class = BranchSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+class AdmissionCategoryViewSet(viewsets.ModelViewSet):
+    queryset = AdmissionCategory.objects.all()
+    serializer_class = AdmissionCategorySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+class CasteViewSet(viewsets.ModelViewSet):
+    queryset = Caste.objects.all()
+    serializer_class = CasteSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -52,20 +67,21 @@ class CurrentUser(APIView):
             'email': user.email
         })
 
-
+@method_decorator(csrf_exempt, name='dispatch')
 class StudentDataEntryView(APIView):
-    permission_classes = [IsAuthenticated]  # Require JWT authentication
+    permission_classes = [AllowAny]
+    parser_classes = [MultiPartParser, FormParser] 
 
-    def post(self, request):
+    def post(self, request, *args, **kwargs):
         serializer = StudentDataEntrySerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(user=request.user)  # Associate entry with authenticated user
-            return Response(
-                {"message": "Student entry created successfully!", "data": serializer.data},
-                status=status.HTTP_201_CREATED
-            )
-        return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
-
+            serializer.save()
+            print(serializer.data)
+            return Response({"message": "Data received"}, status=status.HTTP_201_CREATED)
+        else:
+            print(serializer.errors)
+            #return Response({"message": "Data received"}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class SignupAPIView(APIView):
     permission_classes = [AllowAny]

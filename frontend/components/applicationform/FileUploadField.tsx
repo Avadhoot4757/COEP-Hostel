@@ -24,10 +24,10 @@ export const FileUploadField = ({ name, label, accept = ".pdf,.jpg,.png" }: File
   const watchedFile = watch(name);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+    const file = e.target.files?.[0];
 
-  if (files && files.length > 0) {
-    setValue(name, files, { shouldValidate: true });
+  if (file) {
+    setValue(name, file, { shouldValidate: true });
   } else {
     
     setValue(name, null, { shouldValidate: true });
@@ -57,10 +57,10 @@ export const FileUploadField = ({ name, label, accept = ".pdf,.jpg,.png" }: File
         />
         
         
-        {watchedFile?.[0] && (
+        {watchedFile && (
           <div className="text-sm text-green-600 space-y-1">
             <a
-              href={URL.createObjectURL(watchedFile[0])}
+              href={URL.createObjectURL(watchedFile)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 underline"
@@ -71,9 +71,9 @@ export const FileUploadField = ({ name, label, accept = ".pdf,.jpg,.png" }: File
        
       </div>
 
-      {watchedFile?.[0] && (
+      {watchedFile && (
         <p className="text-sm text-green-600">
-          Selected file: {watchedFile[0].name}
+          Selected file: {watchedFile.name}
         </p>
       )}
 
