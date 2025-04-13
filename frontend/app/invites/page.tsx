@@ -22,7 +22,13 @@ import {
 interface Invite {
   id: number;
   sender: string;
+  sender_first_name: string;
+  sender_last_name: string | null;
+  sender_branch: string;
   receiver: string;
+  receiver_first_name: string;
+  receiver_last_name: string | null;
+  receiver_branch: string;
   status: string;
   timestamp: string;
 }
@@ -43,7 +49,7 @@ export default function InvitesPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push("/?auth=login"); // Changed from /login
+      router.push("/?auth=login");
     }
   }, [authLoading, isAuthenticated, router]);
 
@@ -69,16 +75,15 @@ export default function InvitesPage() {
     }
   }, [isAuthenticated]);
 
-  const parseMember = (member: string) => {
-    const nameMatch = member.match(/^(.*?)\s*\(/);
-    const name = nameMatch ? nameMatch[1].trim() : member;
-    const initials = name
+  const getMemberDisplay = (first_name: string, last_name: string | null) => {
+    const fullName = [first_name, last_name].filter(Boolean).join(" ");
+    const initials = fullName
       .split(" ")
       .map((part) => part[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-    return { name, initials };
+    return { fullName, initials };
   };
 
   const handleAccept = async (inviteId: number) => {
@@ -142,7 +147,10 @@ export default function InvitesPage() {
           <div className="space-y-4">
             {invites.received_invites.length > 0 ? (
               invites.received_invites.map((invite) => {
-                const { name, initials } = parseMember(invite.sender);
+                const { fullName, initials } = getMemberDisplay(
+                  invite.sender_first_name,
+                  invite.sender_last_name
+                );
                 return (
                   <div
                     key={invite.id}
@@ -153,9 +161,9 @@ export default function InvitesPage() {
                         {initials}
                       </div>
                       <div>
-                        <div className="font-medium">{name}</div>
+                        <div className="font-medium">{fullName}</div>
                         <div className="text-sm text-muted-foreground">
-                          Computer Science, 2nd Year
+                          {invite.sender.split("(")[0].trim()}, {invite.sender_branch}
                         </div>
                       </div>
                     </div>
@@ -194,7 +202,7 @@ export default function InvitesPage() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Accepting this invite will add {name} to your room
+                              Accepting this invite will add {fullName} to your room
                               group. All other invites you received will be deleted.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
@@ -223,7 +231,10 @@ export default function InvitesPage() {
           <div className="space-y-4">
             {invites.sent_invites.length > 0 ? (
               invites.sent_invites.map((invite) => {
-                const { name, initials } = parseMember(invite.receiver);
+                const { fullName, initials } = getMemberDisplay(
+                  invite.receiver_first_name,
+                  invite.receiver_last_name
+                );
                 return (
                   <div
                     key={invite.id}
@@ -234,12 +245,9 @@ export default function InvitesPage() {
                         {initials}
                       </div>
                       <div>
-                        <div className="font-medium">{name}</div>
+                        <div className="font-medium">{fullName}</div>
                         <div className="text-sm text-muted-foreground">
-                          Computer Science, 2nd Year
-                          {invite.status === "pending" && " (Pending)"}
-                          {invite.status === "accepted" && " (Accepted)"}
-                          {invite.status === "rejected" && " (Rejected)"}
+                          {invite.receiver.split("(")[0].trim()}, {invite.receiver_branch}
                         </div>
                       </div>
                     </div>
@@ -255,7 +263,7 @@ export default function InvitesPage() {
                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                             <AlertDialogDescription>
                               Cancelling this invite will remove your request to
-                              add {name} to your room group.
+                              add {fullName} to your room group.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

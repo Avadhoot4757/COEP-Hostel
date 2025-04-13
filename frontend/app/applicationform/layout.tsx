@@ -20,7 +20,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="antialiased">
       <body
         className={`${inter.variable} antialiased`}
       > <Toaster position="top-right" />

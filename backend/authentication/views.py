@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
+from authentication.permissions import IsStudent
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -33,20 +34,6 @@ from django.utils.decorators import method_decorator
 
 CustomUser = get_user_model()
 
-class BranchViewSet(viewsets.ModelViewSet):
-    queryset = Branch.objects.all()
-    serializer_class = BranchSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-class AdmissionCategoryViewSet(viewsets.ModelViewSet):
-    queryset = AdmissionCategory.objects.all()
-    serializer_class = AdmissionCategorySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-class CasteViewSet(viewsets.ModelViewSet):
-    queryset = Caste.objects.all()
-    serializer_class = CasteSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -57,7 +44,7 @@ def get_tokens_for_user(user):
 
 
 class CurrentUser(APIView):
-    permission_classes = [IsAuthenticated]  # Require JWT authentication
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
@@ -67,21 +54,129 @@ class CurrentUser(APIView):
             'email': user.email
         })
 
-@method_decorator(csrf_exempt, name='dispatch')
-class StudentDataEntryView(APIView):
-    permission_classes = [AllowAny]
-    parser_classes = [MultiPartParser, FormParser] 
+class BranchView(APIView):
+    def get(self, request):
+        # Students can fetch branches
+        if not request.user.is_authenticated or request.user.user_type != "student":
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        branches = Branch.objects.all()
+        serializer = BranchSerializer(branches, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    def post(self, request, *args, **kwargs):
-        serializer = StudentDataEntrySerializer(data=request.data)
+    def post(self, request):
+        # Admins can create branches
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = BranchSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            print(serializer.data)
-            return Response({"message": "Data received"}, status=status.HTTP_201_CREATED)
-        else:
-            print(serializer.errors)
-            #return Response({"message": "Data received"}, status=status.HTTP_200_OK)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        # Admins can delete branches
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            branch = Branch.objects.get(branch=pk)
+            branch.delete()
+            return Response({"message": "Branch deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except Branch.DoesNotExist:
+            return Response({"error": "Branch not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class AdmissionCategoryView(APIView):
+    def get(self, request):
+        # Students can fetch categories
+        if not request.user.is_authenticated or request.user.user_type != "student":
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        categories = AdmissionCategory.objects.all()
+        serializer = AdmissionCategorySerializer(categories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        # Admins can create categories
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = AdmissionCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        # Admins can delete categories
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            category = AdmissionCategory.objects.get(admission_category=pk)
+            category.delete()
+            return Response({"message": "Admission category deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except AdmissionCategory.DoesNotExist:
+            return Response({"error": "Admission category not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class CasteView(APIView):
+    def get(self, request):
+        # Students can fetch castes
+        if not request.user.is_authenticated or request.user.user_type != "student":
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+        castes = Caste.objects.all()
+        serializer = CasteSerializer(castes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        # Admins can create castes
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = CasteSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        # Admins can delete castes
+        if not request.user.is_authenticated or not request.user.is_staff:
+            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            caste = Caste.objects.get(caste=pk)
+            caste.delete()
+            return Response({"message": "Caste deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except Caste.DoesNotExist:
+            return Response({"error": "Caste not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class StudentDataEntryView(APIView):
+    permission_classes = [IsAuthenticated, IsStudent]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get(self, request):
+        # Check if user has submitted a form
+        try:
+            entry = StudentDataEntry.objects.get(user=request.user)
+            serializer = StudentDataEntrySerializer(entry)
+            return Response({
+                "message": "Form already submitted",
+                "data": serializer.data
+            }, status=status.HTTP_200_OK)
+        except StudentDataEntry.DoesNotExist:
+            return Response({"message": "No form submitted yet"}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        # Prevent multiple submissions
+        if StudentDataEntry.objects.filter(user=request.user).exists():
+            return Response(
+                {"error": "You have already submitted an application form."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = StudentDataEntrySerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Application submitted successfully"}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SignupAPIView(APIView):
     permission_classes = [AllowAny]

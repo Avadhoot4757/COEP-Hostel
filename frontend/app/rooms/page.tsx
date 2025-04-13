@@ -37,6 +37,19 @@ interface Preference {
   rank: number;
 }
 
+interface Member {
+  username: string;
+  first_name: string;
+  last_name: string | null;
+  branch: string;
+}
+
+interface RoomStatus {
+  id: number;
+  name: string;
+  members: Member[];
+}
+
 const SortableItem = ({ id, children }: { id: string; children: React.ReactNode }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
@@ -58,10 +71,10 @@ export default function RoomsPage() {
   const [currentBlockId, setCurrentBlockId] = useState<number | null>(null);
   const [currentFloor, setCurrentFloor] = useState<number | null>(null);
   const [preferences, setPreferences] = useState<string[]>([]);
+  const [roomStatus, setRoomStatus] = useState<RoomStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [groupMembers, setGroupMembers] = useState<string[]>(["RK", "AP", "?", "?"]);
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -72,7 +85,17 @@ export default function RoomsPage() {
     .map(room => room.room_id);
 
   const isPreferencesComplete = preferences.length === allNonOccupiedRooms.length;
-  const isGroupComplete = groupMembers.filter(m => m !== "?").length === 4;
+  const isGroupComplete = (roomStatus?.members.length || 0) === 4;
+
+  const getMemberInitials = (member: Member) => {
+    const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
+    return fullName
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -80,12 +103,14 @@ export default function RoomsPage() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [roomsResponse, preferencesResponse] = await Promise.all([
+        const [roomsResponse, preferencesResponse, roomStatusResponse] = await Promise.all([
           api.get("/allot/rooms/"),
           api.get("/allot/preferences/"),
+          api.get("/allot/room-status/"),
         ]);
         setBlocks(roomsResponse.data);
         setPreferences(preferencesResponse.data.map((p: Preference) => p.room_id));
+        setRoomStatus(roomStatusResponse.data[0] || null);
 
         if (roomsResponse.data.length > 0) {
           setCurrentBlockId(roomsResponse.data[0].id);
@@ -95,7 +120,7 @@ export default function RoomsPage() {
         }
       } catch (err) {
         console.error("Error fetching data:", err);
-        setError("Failed to load rooms or preferences. Please try again.");
+        setError("Failed to load rooms, preferences, or room status. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -108,22 +133,26 @@ export default function RoomsPage() {
   const currentFloorData = currentBlock?.floors.find(floor => floor.number === currentFloor);
 
   const handleRoomClick = (roomId: string) => {
+    if (!isGroupComplete) return; // Disable room selection if group is not full
     if (!preferences.includes(roomId)) {
       setPreferences([...preferences, roomId]);
     }
   };
 
   const removePreference = (roomId: string) => {
+    if (!isGroupComplete) return; // Disable removing preferences if group is not full
     setPreferences(preferences.filter(id => id !== roomId));
   };
 
   const fillRandomly = () => {
+    if (!isGroupComplete) return; // Disable fill randomly if group is not full
     const remainingRooms = allNonOccupiedRooms.filter(roomId => !preferences.includes(roomId));
     const shuffledRemaining = [...remainingRooms].sort(() => Math.random() - 0.5);
     setPreferences([...preferences, ...shuffledRemaining]);
   };
 
   const clearPreferences = () => {
+    if (!isGroupComplete) return; // Disable clear preferences if group is not full
     setPreferences([]);
     setSaveError(null);
   };
@@ -144,11 +173,12 @@ export default function RoomsPage() {
       setSaveError(null);
     } catch (err: any) {
       console.error("Error saving preferences:", err);
-      setSaveError(err.response?.data?.preferences?.[0] || "Failed to save preferences.");
+      setSaveError(err.response?.data?.error || "Failed to save preferences.");
     }
   };
 
   const handleDragEnd = (event: any) => {
+    if (!isGroupComplete) return; // Disable drag-and-drop if group is not full
     const { active, over } = event;
 
     if (active.id !== over.id) {
@@ -174,15 +204,17 @@ export default function RoomsPage() {
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-8">Room Selection</h1>
 
-      <div className="mb-8 p-4 border border-red-200 bg-red-50 rounded-lg flex items-center gap-3">
-        <AlertCircle className="h-5 w-5 text-red-600" />
-        <div>
-          <h2 className="font-semibold text-red-900">Group Incomplete</h2>
-          <p className="text-sm text-red-700">
-            You need to form a complete group of 4 students before you can select room preferences.
-          </p>
+      {!isGroupComplete && (
+        <div className="mb-8 p-4 border border-red-200 bg-red-50 rounded-lg flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-red-600" />
+          <div>
+            <h2 className="font-semibold text-red-900">Group Incomplete</h2>
+            <p className="text-sm text-red-700">
+              You need to form a complete group of 4 students before you can select room preferences.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card className="p-6">
@@ -233,9 +265,11 @@ export default function RoomsPage() {
                       className={`p-4 rounded-lg text-center cursor-pointer ${
                         room.is_occupied
                           ? "border bg-gray-50 text-gray-400 cursor-not-allowed"
-                          : preferences.includes(room.room_id)
+                          : isGroupComplete && preferences.includes(room.room_id)
                           ? "border-2 border-primary bg-primary/5"
-                          : "border-2 border-primary hover:bg-primary/5"
+                          : isGroupComplete
+                          ? "border-2 border-primary hover:bg-primary/5"
+                          : "border bg-gray-100 text-gray-400 cursor-not-allowed"
                       }`}
                     >
                       <div className="font-medium">{room.room_id}</div>
@@ -267,18 +301,21 @@ export default function RoomsPage() {
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Your Group</h2>
             <div className="flex gap-2 mb-4">
-              {groupMembers.map((member, index) => (
-                <div
-                  key={index}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
-                    member === "?"
-                      ? "border-2 border-dashed text-muted-foreground"
-                      : "bg-primary/10"
-                  }`}
-                >
-                  {member}
-                </div>
-              ))}
+              {Array(4).fill(0).map((_, index) => {
+                const member = roomStatus?.members[index];
+                return (
+                  <div
+                    key={index}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm ${
+                      member
+                        ? "bg-primary/10"
+                        : "border-2 border-dashed text-muted-foreground"
+                    }`}
+                  >
+                    {member ? getMemberInitials(member) : "?"}
+                  </div>
+                );
+              })}
             </div>
           </Card>
 
@@ -305,6 +342,7 @@ export default function RoomsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => removePreference(roomId)}
+                            disabled={!isGroupComplete}
                           >
                             Remove
                           </Button>
@@ -316,19 +354,19 @@ export default function RoomsPage() {
               </SortableContext>
             </DndContext>
             <div className="space-y-4">
-              {!isPreferencesComplete && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={fillRandomly}
-                >
-                  Fill Randomly
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={fillRandomly}
+                disabled={!isGroupComplete}
+              >
+                Fill Randomly
+              </Button>
               <Button
                 variant="outline"
                 className="w-full"
                 onClick={clearPreferences}
+                disabled={!isGroupComplete}
               >
                 Clear Preferences
               </Button>
