@@ -26,6 +26,11 @@ from rest_framework.response import Response
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 import random, uuid
+from rest_framework.decorators import api_view,permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
 
 CustomUser = get_user_model()
 
@@ -226,3 +231,18 @@ class PasswordResetConfirmAPIView(APIView):
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class UserDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request):
+        """
+        Retrieve the authenticated user's details.
+        """
+        user = request.user
+        return Response({
+            "username": user.username,
+            "email": user.email,
+            "id": user.id,
+            "user_type": getattr(user, 'user_type', 'unknown')  # Handle if user_type is not defined
+        })

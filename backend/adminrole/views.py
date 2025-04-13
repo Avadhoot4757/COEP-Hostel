@@ -3,6 +3,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from authentication.models import StudentDataEntry
 from .serializers import StudentDataEntrySerializer
+from authentication.permissions import IsRector, IsWarden
+from rest_framework.permissions import IsAuthenticated
+from .models  import SelectDates
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 class PendingStudentsView(APIView):
     """Handles listing and verifying/rejecting pending students."""
@@ -72,3 +76,34 @@ class RejectedStudentsView(APIView):
         except StudentDataEntry.DoesNotExist:
             return Response({"error": "Student not found or not rejected."}, status=status.HTTP_404_NOT_FOUND)
 
+class setDatesView(APIView):
+    permission_classes=[IsAuthenticated]
+    def get(self,request):
+        #fetching the dates from database 
+        dates=SelectDates.objects.all().values('event_id','event','start_date','end_date')
+    #mapping the dates for the dictionary in frontend 
+        date_dict={
+            'registrationStart': dates.filter(event='Registration Start').first().start_date.isoformat() if dates.filter(event='Registration Start').exists() else '',
+                'registrationEnd': dates.filter(event='Registration End').first().end_date.isoformat() if dates.filter(event='Registration End').exists() else '',
+                'resultDeclaration': dates.filter(event='Result Declaration').first().start_date.isoformat() if dates.filter(event='Result Declaration').exists() else '',
+                'roommakingStart': dates.filter(event='Room Making Start').first().start_date.isoformat() if dates.filter(event='Room Making Start').exists() else '',
+                'roommakingEnd': dates.filter(event='Room Making End').first().end_date.isoformat() if dates.filter(event='Room Making End').exists() else '',
+                'finalAllotment': dates.filter(event='Final Allotment').first().start_date.isoformat() if dates.filter(event='Final Allotment').exists() else '',
+                'verificationStart': dates.filter(event='Verification Start').first().start_date.isoformat() if dates.filter(event='Verification Start').exists() else '',
+                'verificationEnd': dates.filter(event='Verification End').first().end_date.isoformat() if dates.filter(event='Verification End').exists() else '',
+        }
+        return Response(date_dict)
+    def post(self,request):
+        #save the dates or set new dates 
+        data=request.data
+        for event_key, date_value in data.items():
+            if date_value:  # Only update if a date is provided
+                event_name = event_key.replace('_', ' ').title()
+                obj, created = SelectDates.objects.update_or_create(
+                    event=event_name,
+                    defaults={
+                        'start_date': date_value if 'Start' in event_name or 'Declaration' in event_name or 'Allotment' in event_name else None,
+                        'end_date': date_value if 'End' in event_name else None
+                    }
+                )
+        return Response({"message": "Dates saved successfully"}, status=200)
