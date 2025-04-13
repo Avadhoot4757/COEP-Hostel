@@ -1,0 +1,233 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+AdmissionCategory	models.py	/^class AdmissionCategory(models.Model):$/;"	c
+AuthenticationConfig	apps.py	/^class AuthenticationConfig(AppConfig):$/;"	c
+BloodGroup	models.py	/^class BloodGroup(models.Model):$/;"	c
+Branch	models.py	/^class Branch(models.Model):$/;"	c
+Caste	models.py	/^class Caste(models.Model):$/;"	c
+Class	models.py	/^class Class(models.Model):$/;"	c
+CustomUser	models.py	/^class CustomUser(AbstractUser):$/;"	c
+CustomUser	views.py	/^CustomUser = get_user_model()$/;"	v
+Gender	models.py	/^class Gender(models.Model):$/;"	c
+IsRector	permissions.py	/^class IsRector(BasePermission):$/;"	c
+IsStudent	permissions.py	/^class IsStudent(BasePermission):$/;"	c
+IsWarden	permissions.py	/^class IsWarden(BasePermission):$/;"	c
+LoginAPIView	views.py	/^class LoginAPIView(APIView):$/;"	c
+LoginSerializer	serializers.py	/^class LoginSerializer(serializers.Serializer):$/;"	c
+Meta	serializers.py	/^    class Meta:$/;"	c	class:StudentDataEntrySerializer
+Migration	migrations/0001_initial.py	/^class Migration(migrations.Migration):$/;"	c
+Migration	migrations/0002_rename_name_studentmain_roll_no.py	/^class Migration(migrations.Migration):$/;"	c
+Migration	migrations/0003_remove_studentmain_email_studentmain_college_mail_and_more.py	/^class Migration(migrations.Migration):$/;"	c
+Migration	migrations/0004_otpverification.py	/^class Migration(migrations.Migration):$/;"	c
+Migration	migrations/0005_delete_otpverification.py	/^class Migration(migrations.Migration):$/;"	c
+Migration	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^class Migration(migrations.Migration):$/;"	c
+OTPVerificationSerializer	serializers.py	/^class OTPVerificationSerializer(serializers.Serializer):$/;"	c
+PasswordResetConfirmAPIView	views.py	/^class PasswordResetConfirmAPIView(APIView):$/;"	c
+PasswordResetConfirmSerializer	serializers.py	/^class PasswordResetConfirmSerializer(serializers.Serializer):$/;"	c
+PasswordResetSerializer	serializers.py	/^class PasswordResetSerializer(serializers.Serializer):$/;"	c
+RequestPasswordResetAPIView	views.py	/^class RequestPasswordResetAPIView(APIView):$/;"	c
+SignupAPIView	views.py	/^class SignupAPIView(APIView):$/;"	c
+SignupSerializer	serializers.py	/^class SignupSerializer(serializers.Serializer):$/;"	c
+StudentDataEntry	models.py	/^class StudentDataEntry(models.Model):$/;"	c
+StudentDataEntrySerializer	serializers.py	/^class StudentDataEntrySerializer(serializers.ModelSerializer):$/;"	c
+StudentDataEntryView	views.py	/^class StudentDataEntryView(APIView):$/;"	c
+StudentMain	models.py	/^class StudentMain(models.Model):$/;"	c
+USER_TYPES	models.py	/^    USER_TYPES = ($/;"	v	class:CustomUser
+VerifyOTPAPIView	views.py	/^class VerifyOTPAPIView(APIView):$/;"	c
+__str__	models.py	/^    def __str__(self):$/;"	m	class:CustomUser	file:
+address_proof	models.py	/^    address_proof = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+admission_category	models.py	/^    admission_category = models.CharField(max_length=100, unique=True, primary_key=True)$/;"	v	class:AdmissionCategory
+admission_category	models.py	/^    admission_category = models.ForeignKey(AdmissionCategory, on_delete=models.DO_NOTHING)$/;"	v	class:StudentDataEntry
+admission_category	models.py	/^    admission_category = models.ForeignKey(AdmissionCategory, on_delete=models.DO_NOTHING)$/;"	v	class:StudentMain
+admission_confirmation_letter	models.py	/^    admission_confirmation_letter = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+annual_income	models.py	/^    annual_income = models.CharField(max_length=20, null=True, blank=True)$/;"	v	class:StudentDataEntry
+blood_group	models.py	/^    blood_group = models.CharField(max_length=10, unique=True, primary_key=True)$/;"	v	class:BloodGroup
+blood_group	models.py	/^    blood_group = models.ForeignKey(BloodGroup, on_delete=models.DO_NOTHING)$/;"	v	class:StudentDataEntry
+blood_group	models.py	/^    blood_group = models.ForeignKey(BloodGroup, on_delete=models.DO_NOTHING)$/;"	v	class:StudentMain
+branch	models.py	/^    branch = models.CharField(max_length=100, unique=True, primary_key=True)$/;"	v	class:Branch
+branch	models.py	/^    branch = models.ForeignKey(Branch, on_delete=models.DO_NOTHING)$/;"	v	class:StudentDataEntry
+branch	models.py	/^    branch = models.ForeignKey(Branch, on_delete=models.DO_NOTHING)$/;"	v	class:StudentMain
+caste	models.py	/^    caste = models.CharField(max_length=100, unique=True, primary_key=True)$/;"	v	class:Caste
+caste	models.py	/^    caste = models.ForeignKey(Caste, on_delete=models.DO_NOTHING)$/;"	v	class:StudentDataEntry
+caste	models.py	/^    caste = models.ForeignKey(Caste, on_delete=models.DO_NOTHING)$/;"	v	class:StudentMain
+caste_certificate	models.py	/^    caste_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+caste_certificate	models.py	/^    caste_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentMain
+caste_validity_certificate	models.py	/^    caste_validity_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+class_name	models.py	/^    class_name = models.CharField(max_length=100, unique=True, primary_key=True)$/;"	v	class:Class
+class_name	models.py	/^    class_name = models.ForeignKey(Class, on_delete=models.DO_NOTHING)$/;"	v	class:StudentDataEntry
+class_name	models.py	/^    class_name = models.ForeignKey(Class, on_delete=models.DO_NOTHING)$/;"	v	class:StudentMain
+college_fee_receipt	models.py	/^    college_fee_receipt = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+college_mail	models.py	/^    college_mail = models.EmailField(null=True, blank=True)$/;"	v	class:StudentDataEntry
+college_mail	models.py	/^    college_mail = models.EmailField(null=True, blank=True)$/;"	v	class:StudentMain
+confirm_password	serializers.py	/^    confirm_password = serializers.CharField(write_only=True, min_length=8)$/;"	v	class:PasswordResetConfirmSerializer
+creamy_layer	models.py	/^    creamy_layer = models.BooleanField(default=False)$/;"	v	class:StudentDataEntry
+creamy_layer	models.py	/^    creamy_layer = models.BooleanField(default=False)$/;"	v	class:StudentMain
+default_auto_field	apps.py	/^    default_auto_field = 'django.db.models.BigAutoField'$/;"	v	class:AuthenticationConfig
+dependencies	migrations/0001_initial.py	/^    dependencies = [$/;"	v	class:Migration
+dependencies	migrations/0002_rename_name_studentmain_roll_no.py	/^    dependencies = [$/;"	v	class:Migration
+dependencies	migrations/0003_remove_studentmain_email_studentmain_college_mail_and_more.py	/^    dependencies = [$/;"	v	class:Migration
+dependencies	migrations/0004_otpverification.py	/^    dependencies = [$/;"	v	class:Migration
+dependencies	migrations/0005_delete_otpverification.py	/^    dependencies = [$/;"	v	class:Migration
+dependencies	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^    dependencies = [$/;"	v	class:Migration
+email	models.py	/^    email = models.EmailField(unique=True)  # Ensures unique email for all users$/;"	v	class:CustomUser
+email	serializers.py	/^    email = serializers.EmailField()$/;"	v	class:PasswordResetSerializer
+email	serializers.py	/^    email = serializers.EmailField()$/;"	v	class:SignupSerializer
+emergency_contact	models.py	/^    emergency_contact = models.CharField(max_length=15, null=True, blank=True)$/;"	v	class:StudentDataEntry
+emergency_contact	models.py	/^    emergency_contact = models.CharField(max_length=15, null=True, blank=True)$/;"	v	class:StudentMain
+ews_certificate	models.py	/^    ews_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+ews_certificate	models.py	/^    ews_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentMain
+field	migrations/0003_remove_studentmain_email_studentmain_college_mail_and_more.py	/^            field=models.EmailField(max_length=254, null=True, unique=True),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.BooleanField(default=False),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.CharField(blank=True, max_length=100, null=True),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.CharField(blank=True, max_length=15, null=True),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.CharField(blank=True, max_length=255, null=True),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.CharField(default=1, max_length=100),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.CharField(default=1, max_length=15),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.CharField(max_length=20, primary_key=True, serialize=False, unique=True),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.EmailField(blank=True, max_length=254, null=True),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.DO_NOTHING, to='authentication.admissioncategory'),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.DO_NOTHING, to='authentication.bloodgroup'),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.DO_NOTHING, to='authentication.branch'),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.DO_NOTHING, to='authentication.caste'),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.DO_NOTHING, to='authentication.class'),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.DO_NOTHING, to='authentication.gender'),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.IntegerField(blank=True, null=True),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.TextField(blank=True, null=True),$/;"	v	class:Migration
+field	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            field=models.TextField(default=1),$/;"	v	class:Migration
+fields	migrations/0001_initial.py	/^            fields=[$/;"	v	class:Migration
+fields	migrations/0004_otpverification.py	/^            fields=[$/;"	v	class:Migration
+fields	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            fields=[$/;"	v	class:Migration
+fields	serializers.py	/^        fields = '__all__'  # Includes all fields from the model$/;"	v	class:StudentDataEntrySerializer.Meta
+first_name	models.py	/^    first_name = models.CharField(max_length=100)$/;"	v	class:StudentDataEntry
+first_name	models.py	/^    first_name = models.CharField(max_length=100)$/;"	v	class:StudentMain
+gender	models.py	/^    gender = models.CharField(max_length=20, unique=True, primary_key=True)$/;"	v	class:Gender
+gender	models.py	/^    gender = models.ForeignKey(Gender, on_delete=models.DO_NOTHING)$/;"	v	class:StudentDataEntry
+gender	models.py	/^    gender = models.ForeignKey(Gender, on_delete=models.DO_NOTHING)$/;"	v	class:StudentMain
+get_tokens_for_user	views.py	/^def get_tokens_for_user(user):$/;"	f
+has_permission	permissions.py	/^    def has_permission(self, request, view):$/;"	m	class:IsRector
+has_permission	permissions.py	/^    def has_permission(self, request, view):$/;"	m	class:IsStudent
+has_permission	permissions.py	/^    def has_permission(self, request, view):$/;"	m	class:IsWarden
+hostel_no_dues	models.py	/^    hostel_no_dues = models.CharField(max_length=50, null=True, blank=True)$/;"	v	class:StudentDataEntry
+income_certificate	models.py	/^    income_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+initial	migrations/0001_initial.py	/^    initial = True$/;"	v	class:Migration
+last_name	models.py	/^    last_name = models.CharField(max_length=100, null=True, blank=True)$/;"	v	class:StudentDataEntry
+last_name	models.py	/^    last_name = models.CharField(max_length=100, null=True, blank=True)$/;"	v	class:StudentMain
+local_guardian_address	models.py	/^    local_guardian_address = models.TextField(null=True, blank=True)$/;"	v	class:StudentDataEntry
+local_guardian_address	models.py	/^    local_guardian_address = models.TextField(null=True, blank=True)$/;"	v	class:StudentMain
+local_guardian_contact	models.py	/^    local_guardian_contact = models.CharField(max_length=15, null=True, blank=True)$/;"	v	class:StudentDataEntry
+local_guardian_contact	models.py	/^    local_guardian_contact = models.CharField(max_length=15, null=True, blank=True)$/;"	v	class:StudentMain
+local_guardian_name	models.py	/^    local_guardian_name = models.CharField(max_length=100, null=True, blank=True)$/;"	v	class:StudentDataEntry
+local_guardian_name	models.py	/^    local_guardian_name = models.CharField(max_length=100, null=True, blank=True)$/;"	v	class:StudentMain
+managers	migrations/0001_initial.py	/^            managers=[$/;"	v	class:Migration
+mess_no_dues	models.py	/^    mess_no_dues = models.CharField(max_length=50, null=True, blank=True)$/;"	v	class:StudentDataEntry
+middle_name	models.py	/^    middle_name = models.CharField(max_length=100, null=True, blank=True)$/;"	v	class:StudentDataEntry
+middle_name	models.py	/^    middle_name = models.CharField(max_length=100, null=True, blank=True)$/;"	v	class:StudentMain
+mobile_number	models.py	/^    mobile_number = models.CharField(max_length=15)$/;"	v	class:StudentDataEntry
+mobile_number	models.py	/^    mobile_number = models.CharField(max_length=15)$/;"	v	class:StudentMain
+model	serializers.py	/^        model = StudentDataEntry$/;"	v	class:StudentDataEntrySerializer.Meta
+model_name	migrations/0002_rename_name_studentmain_roll_no.py	/^            model_name='studentmain',$/;"	v	class:Migration
+model_name	migrations/0003_remove_studentmain_email_studentmain_college_mail_and_more.py	/^            model_name='studentmain',$/;"	v	class:Migration
+model_name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            model_name='studentmain',$/;"	v	class:Migration
+name	apps.py	/^    name = 'authentication'$/;"	v	class:AuthenticationConfig
+name	migrations/0001_initial.py	/^            name='CustomUser',$/;"	v	class:Migration
+name	migrations/0001_initial.py	/^            name='StudentMain',$/;"	v	class:Migration
+name	migrations/0003_remove_studentmain_email_studentmain_college_mail_and_more.py	/^            name='college_mail',$/;"	v	class:Migration
+name	migrations/0003_remove_studentmain_email_studentmain_college_mail_and_more.py	/^            name='email',$/;"	v	class:Migration
+name	migrations/0003_remove_studentmain_email_studentmain_college_mail_and_more.py	/^            name='personal_mail',$/;"	v	class:Migration
+name	migrations/0004_otpverification.py	/^            name='OTPVerification',$/;"	v	class:Migration
+name	migrations/0005_delete_otpverification.py	/^            name='OTPVerification',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='AdmissionCategory',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='BloodGroup',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='Branch',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='Caste',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='Class',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='Gender',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='StudentDataEntry',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='admission_category',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='blood_group',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='branch',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='caste',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='caste_certificate',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='class_name',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='college_mail',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='creamy_layer',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='emergency_contact',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='ews_certificate',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='first_name',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='gender',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='id',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='last_name',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='local_guardian_address',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='local_guardian_contact',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='local_guardian_name',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='middle_name',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='mobile_number',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='non_creamy_layer_certificate',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='parent_contact',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='parent_name',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='permanent_address',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='pwd',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='pwd_certificate',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='rank',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='roll_no',$/;"	v	class:Migration
+name	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            name='year',$/;"	v	class:Migration
+new_name	migrations/0002_rename_name_studentmain_roll_no.py	/^            new_name='roll_no',$/;"	v	class:Migration
+new_password	serializers.py	/^    new_password = serializers.CharField(write_only=True, min_length=8)$/;"	v	class:PasswordResetConfirmSerializer
+non_creamy_layer_certificate	models.py	/^    non_creamy_layer_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+non_creamy_layer_certificate	models.py	/^    non_creamy_layer_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentMain
+old_name	migrations/0002_rename_name_studentmain_roll_no.py	/^            old_name='name',$/;"	v	class:Migration
+operations	migrations/0001_initial.py	/^    operations = [$/;"	v	class:Migration
+operations	migrations/0002_rename_name_studentmain_roll_no.py	/^    operations = [$/;"	v	class:Migration
+operations	migrations/0003_remove_studentmain_email_studentmain_college_mail_and_more.py	/^    operations = [$/;"	v	class:Migration
+operations	migrations/0004_otpverification.py	/^    operations = [$/;"	v	class:Migration
+operations	migrations/0005_delete_otpverification.py	/^    operations = [$/;"	v	class:Migration
+operations	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^    operations = [$/;"	v	class:Migration
+options	migrations/0001_initial.py	/^            options={$/;"	v	class:Migration
+orphan	models.py	/^    orphan = models.BooleanField(default=False)$/;"	v	class:StudentDataEntry
+otp	serializers.py	/^    otp = serializers.CharField(max_length=6)$/;"	v	class:OTPVerificationSerializer
+parent_contact	models.py	/^    parent_contact = models.CharField(max_length=15)$/;"	v	class:StudentDataEntry
+parent_contact	models.py	/^    parent_contact = models.CharField(max_length=15)$/;"	v	class:StudentMain
+parent_name	models.py	/^    parent_name = models.CharField(max_length=100)$/;"	v	class:StudentDataEntry
+parent_name	models.py	/^    parent_name = models.CharField(max_length=100)$/;"	v	class:StudentMain
+parent_occupation	models.py	/^    parent_occupation = models.CharField(max_length=100, null=True, blank=True)$/;"	v	class:StudentDataEntry
+password	serializers.py	/^    password = serializers.CharField(write_only=True)$/;"	v	class:LoginSerializer
+password	serializers.py	/^    password = serializers.CharField(write_only=True)$/;"	v	class:SignupSerializer
+password2	serializers.py	/^    password2 = serializers.CharField(write_only=True)$/;"	v	class:SignupSerializer
+permanent_address	models.py	/^    permanent_address = models.TextField()$/;"	v	class:StudentDataEntry
+permanent_address	models.py	/^    permanent_address = models.TextField()$/;"	v	class:StudentMain
+permission_classes	views.py	/^    permission_classes = [AllowAny]$/;"	v	class:LoginAPIView
+permission_classes	views.py	/^    permission_classes = [AllowAny]$/;"	v	class:PasswordResetConfirmAPIView
+permission_classes	views.py	/^    permission_classes = [AllowAny]$/;"	v	class:RequestPasswordResetAPIView
+permission_classes	views.py	/^    permission_classes = [AllowAny]$/;"	v	class:SignupAPIView
+permission_classes	views.py	/^    permission_classes = [AllowAny]$/;"	v	class:VerifyOTPAPIView
+personal_mail	models.py	/^    personal_mail = models.EmailField(unique=True)$/;"	v	class:StudentDataEntry
+personal_mail	models.py	/^    personal_mail = models.EmailField(unique=True, null=True)$/;"	v	class:StudentMain
+post	views.py	/^    def post(self, request):$/;"	m	class:LoginAPIView
+post	views.py	/^    def post(self, request):$/;"	m	class:RequestPasswordResetAPIView
+post	views.py	/^    def post(self, request):$/;"	m	class:SignupAPIView
+post	views.py	/^    def post(self, request):$/;"	m	class:StudentDataEntryView
+post	views.py	/^    def post(self, request):$/;"	m	class:VerifyOTPAPIView
+post	views.py	/^    def post(self, request, uidb64, token):$/;"	m	class:PasswordResetConfirmAPIView
+preserve_default	migrations/0006_admissioncategory_bloodgroup_branch_caste_class_and_more.py	/^            preserve_default=False,$/;"	v	class:Migration
+pwd	models.py	/^    pwd = models.BooleanField(default=False)$/;"	v	class:StudentDataEntry
+pwd	models.py	/^    pwd = models.BooleanField(default=False)$/;"	v	class:StudentMain
+pwd_certificate	models.py	/^    pwd_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentDataEntry
+pwd_certificate	models.py	/^    pwd_certificate = models.CharField(max_length=255, null=True, blank=True)$/;"	v	class:StudentMain
+rank	models.py	/^    rank = models.IntegerField(null=True, blank=True)$/;"	v	class:StudentDataEntry
+rank	models.py	/^    rank = models.IntegerField(null=True, blank=True)$/;"	v	class:StudentMain
+roll_no	models.py	/^    roll_no = models.CharField(max_length=20, unique=True, primary_key=True)$/;"	v	class:StudentDataEntry
+roll_no	models.py	/^    roll_no = models.CharField(max_length=20, unique=True, primary_key=True)$/;"	v	class:StudentMain
+seat_matrix_percentage	models.py	/^    seat_matrix_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)$/;"	v	class:Caste
+token	serializers.py	/^    token = serializers.CharField(required=True)$/;"	v	class:OTPVerificationSerializer
+urlpatterns	urls.py	/^urlpatterns = [$/;"	v
+user_type	models.py	/^    user_type = models.CharField(max_length=10, choices=USER_TYPES, default='student')$/;"	v	class:CustomUser
+username	serializers.py	/^    username = serializers.CharField()$/;"	v	class:LoginSerializer
+username	serializers.py	/^    username = serializers.CharField(max_length=150)$/;"	v	class:SignupSerializer
+validate	serializers.py	/^    def validate(self, data):$/;"	m	class:PasswordResetConfirmSerializer
+validate	serializers.py	/^    def validate(self, data):$/;"	m	class:SignupSerializer
+verified	models.py	/^    verified = models.BooleanField(null=True, default=None)$/;"	v	class:StudentDataEntry
+year	serializers.py	/^    year = serializers.CharField(max_length=20)$/;"	v	class:SignupSerializer

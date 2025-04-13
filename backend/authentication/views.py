@@ -1,4 +1,6 @@
 import random
+from django.conf import settings
+import uuid
 from django.contrib.auth.models import Group
 from django.utils.timezone import now
 from django.core.mail import send_mail, EmailMultiAlternatives
@@ -6,43 +8,62 @@ from django.template.loader import render_to_string
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
 from django.urls import reverse
-from .serializers import SignupSerializer, OTPVerificationSerializer, LoginSerializer  
-from .serializers import StudentDataEntrySerializer, PasswordResetSerializer, PasswordResetConfirmSerializer
+from .serializers import (
+    SignupSerializer,
+    OTPVerificationSerializer,
+    LoginSerializer,
+    StudentDataEntrySerializer,
+    PasswordResetSerializer,
+    PasswordResetConfirmSerializer,
+)
 from .models import StudentDataEntry
-from datetime import datetime   
-from datetime import timedelta   
+from datetime import datetime
+from datetime import timedelta
 from django.core.cache import cache
-from django.utils.timezone import now
-from rest_framework.response import Response
-from django.core.mail import EmailMultiAlternatives
-from django.template.loader import render_to_string
-import random, uuid
-from rest_framework.decorators import api_view,permission_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework_simplejwt.authentication import JWTAuthentication
-
 
 CustomUser = get_user_model()
 
 
+def get_tokens_for_user(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
+    }
+
+
+class CurrentUser(APIView):
+    permission_classes = [IsAuthenticated]  # Require JWT authentication
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email
+        })
+
+
 class StudentDataEntryView(APIView):
+    permission_classes = [IsAuthenticated]  # Require JWT authentication
+
     def post(self, request):
         serializer = StudentDataEntrySerializer(data=request.data)
-
         if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "Student entry created successfully!", "data": serializer.data}, 
-                            status=status.HTTP_201_CREATED)
+            serializer.save(user=request.user)  # Associate entry with authenticated user
+            return Response(
+                {"message": "Student entry created successfully!", "data": serializer.data},
+                status=status.HTTP_201_CREATED
+            )
         return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -54,18 +75,22 @@ class SignupAPIView(APIView):
         if serializer.is_valid():
             data = serializer.validated_data
             verification_code = ''.join(random.choices('0123456789', k=6))
-            token = uuid.uuid4().hex  # Generate unique token
-            
+            token = uuid.uuid4().hex
+
             # Store OTP and user data in cache with expiry (10 minutes)
-            cache.set(token, {
-                'otp': verification_code,
-                'email': data['email'],
-                'username': data['username'],
-                'password': data['password'],
-                'year': data['year'],
-                'timestamp': now().isoformat()
-            }, timeout=600)
-            
+            cache.set(
+                token,
+                {
+                    'otp': verification_code,
+                    'email': data['email'],
+                    'username': data['username'],
+                    'password': data['password'],
+                    'year': data['year'],
+                    'timestamp': now().isoformat(),
+                },
+                timeout=600,
+            )
+
             # Render email template with OTP
             email_subject = "Verify Your Sign-up"
             email_body = render_to_string('otp_email.html', {'otp': verification_code, 'email': data['email']})
@@ -73,77 +98,107 @@ class SignupAPIView(APIView):
             # Send HTML email
             email = EmailMultiAlternatives(
                 subject=email_subject,
-                body="Your verification code is: " + verification_code,  # Plain text fallback
+                body="Your verification code is: " + verification_code,
                 from_email='djangoproject24@gmail.com',
-                to=[data['email']]
+                to=[data['email']],
             )
             email.attach_alternative(email_body, "text/html")
             email.send()
 
-            return Response({"message": "OTP sent successfully. Check your email.", "token": token}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "OTP sent successfully. Check your email.", "token": token},
+                status=status.HTTP_200_OK,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class VerifyOTPAPIView(APIView):
     permission_classes = [AllowAny]
-    
+
     def post(self, request):
         serializer = OTPVerificationSerializer(data=request.data)
-        print("hi\n")
         if serializer.is_valid():
-            print("hi2\n")
             entered_otp = serializer.validated_data['otp']
             token = serializer.validated_data['token']
-            print(entered_otp + " " + token)
+
             # Retrieve data from cache
             stored_data = cache.get(token)
             if not stored_data:
-                print("hi")
-                return Response({"error": "OTP expired or invalid. Please request a new one."}, status=status.HTTP_400_BAD_REQUEST)
-            
+                return Response(
+                    {"error": "OTP expired or invalid. Please request a new one."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             stored_otp = stored_data['otp']
             timestamp = stored_data['timestamp']
-            
+
             # Check OTP expiration
             if now() - datetime.fromisoformat(timestamp) > timedelta(minutes=10):
-                print("hi2")
                 cache.delete(token)
-                return Response({"error": "OTP expired. Request a new one."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            print(stored_otp)
+                return Response(
+                    {"error": "OTP expired. Request a new one."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             if entered_otp == stored_otp:
                 email = stored_data['email']
                 password = stored_data['password']
                 username = stored_data['username']
-                
+
                 try:
                     new_user = CustomUser.objects.create_user(
                         username=username, email=email, password=password, user_type='student'
                     )
-
                     student_group, _ = Group.objects.get_or_create(name='Student')
                     student_group.user_set.add(new_user)
-                    
+
+                    # Generate tokens upon successful signup
+                    tokens = get_tokens_for_user(new_user)
                     cache.delete(token)  # Remove used token
-                    return Response({"message": "Verification successful. You can log in now."}, status=status.HTTP_200_OK)
-                
+
+                    response = Response(
+                        {
+                            "message": "Verification successful. You can log in now.",
+                            "access_token": tokens['access'],
+                            "refresh_token": tokens['refresh'],
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+
+                    # Set tokens in cookies
+                    response.set_cookie(
+                        key='access_token',
+                        value=tokens['access'],
+                        httponly=True,
+                        secure=True,
+                        samesite='None',
+                        max_age=3600,  # 1 hour
+                    )
+                    response.set_cookie(
+                        key='refresh_token',
+                        value=tokens['refresh'],
+                        httponly=True,
+                        secure=True,
+                        samesite='None',
+                        max_age=7 * 24 * 3600,  # 7 days
+                    )
+
+                    return response
+
                 except Exception as e:
-                    print("on\n")
-                    return Response({"error": f"Failed to create user: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-            
-            print("oh\n")
-            return Response({"error": "Invalid OTP. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(
+                        {"error": f"Failed to create user: {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+            return Response(
+                {"error": "Invalid OTP. Please try again."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-def get_tokens_for_user(user):
-    refresh = RefreshToken.for_user(user)
-    return {
-        'refresh': str(refresh),
-        'access': str(refresh.access_token),
-    }
 
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
@@ -158,14 +213,82 @@ class LoginAPIView(APIView):
 
             if user:
                 tokens = get_tokens_for_user(user)
-                return Response({
-                    "message": "Login successful",
-                    "tokens": tokens
-                }, status=status.HTTP_200_OK)
+                response = Response(
+                    {
+                        "message": "Login successful",
+                        "user": {
+                            "username": user.username,
+                        },
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
+                # Set HttpOnly cookies
+                response.set_cookie(
+                    key='access_token',
+                    value=tokens['access'],
+                    httponly=True,
+                    secure=True,
+                    samesite='None',
+                    max_age=3600,  # 1 hour
+                )
+                response.set_cookie(
+                    key='refresh_token',
+                    value=tokens['refresh'],
+                    httponly=True,
+                    secure=True,
+                    samesite='None',
+                    max_age=7 * 24 * 3600,  # 7 days
+                )
+
+                return response
+
+            return Response(
+                {"error": "Invalid credentials"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LogoutAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # Get refresh token from cookie
+            refresh_token = request.COOKIES.get('refresh_token')
+            
+            if refresh_token:
+                # Blacklist the refresh token to invalidate it
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            
+            # Create response
+            response = Response(
+                {"message": "Logout successful"},
+                status=status.HTTP_200_OK
+            )
+            
+            # Clear the access_token and refresh_token cookies
+            response.delete_cookie(
+                key='access_token',
+                path='/',
+                domain=None
+            )
+            response.delete_cookie(
+                key='refresh_token',
+                path='/',
+                domain=None
+            )
+            
+            return response
+            
+        except Exception as e:
+            return Response(
+                {"error": f"Logout failed: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class RequestPasswordResetAPIView(APIView):
@@ -179,7 +302,10 @@ class RequestPasswordResetAPIView(APIView):
             try:
                 user = CustomUser.objects.get(email=email)
             except CustomUser.DoesNotExist:
-                return Response({"error": "User with this email does not exist"}, status=status.HTTP_404_NOT_FOUND)
+                return Response(
+                    {"error": "User with this email does not exist"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
             # Generate password reset token
             uid = urlsafe_base64_encode(force_bytes(user.pk))
@@ -187,7 +313,7 @@ class RequestPasswordResetAPIView(APIView):
 
             # Construct password reset link
             reset_link = request.build_absolute_uri(
-                reverse("password-reset-confirm", kwargs={"uidb64": uid, "token": token})
+                reverse("password_reset_confirm", kwargs={"uidb64": uid, "token": token})
             )
 
             # Send email with reset link
@@ -199,7 +325,10 @@ class RequestPasswordResetAPIView(APIView):
                 fail_silently=False,
             )
 
-            return Response({"message": "Password reset link sent successfully."}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "Password reset link sent successfully."},
+                status=status.HTTP_200_OK,
+            )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -218,31 +347,59 @@ class PasswordResetConfirmAPIView(APIView):
 
                 # Validate token
                 if not default_token_generator.check_token(user, token):
-                    return Response({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(
+                        {"error": "Invalid or expired token"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
                 # Set new password
                 user.set_password(new_password)
                 user.save()
 
-                return Response({"message": "Password reset successfully."}, status=status.HTTP_200_OK)
+                return Response(
+                    {"message": "Password reset successfully."},
+                    status=status.HTTP_200_OK,
+                )
 
             except (TypeError, ValueError, OverflowError, CustomUser.DoesNotExist):
-                return Response({"error": "Invalid request"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"error": "Invalid request"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class UserDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
 
-    def get(self, request):
-        """
-        Retrieve the authenticated user's details.
-        """
-        user = request.user
-        return Response({
-            "username": user.username,
-            "email": user.email,
-            "id": user.id,
-            "user_type": getattr(user, 'user_type', 'unknown')  # Handle if user_type is not defined
-        })
+class CookieTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        # Get refresh token from cookie
+        refresh_token = request.COOKIES.get(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
+        
+        if not refresh_token:
+            return Response({"detail": "Refresh token not found in cookies"}, 
+                            status=status.HTTP_401_UNAUTHORIZED)
+            
+        # Set the token in the request data
+        request.data['refresh'] = refresh_token
+        
+        # Call the parent class's post method
+        response = super().post(request, *args, **kwargs)
+        
+        if response.status_code == 200:
+            # Set the new access token as a cookie
+            response.set_cookie(
+                key=settings.SIMPLE_JWT['AUTH_COOKIE'],
+                value=response.data['access'],
+                max_age=60 * 60,  # 1 hour
+                httponly=True,
+                secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
+            )
+            
+            # Remove the tokens from the response body for added security
+            if 'access' in response.data:
+                del response.data['access']
+            if 'refresh' in response.data:
+                del response.data['refresh']
+                
+        return response
