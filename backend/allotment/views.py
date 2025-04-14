@@ -9,6 +9,7 @@ from .serializers import *
 
 User = get_user_model()
 
+
 class RoomGroupStatusView(APIView):
     """ 
     1. Get current user's room group status 
@@ -45,10 +46,9 @@ class RoomGroupStatusView(APIView):
 
         # Remove user from the room group
         room_group.members.remove(user)
-        
 
         # Delete the room group if it becomes empty
-        if room_group.members.count() == 0:
+        if room_group.members.count() <= 1:
             room_group.delete()
 
         return Response(
@@ -56,20 +56,42 @@ class RoomGroupStatusView(APIView):
             status=status.HTTP_200_OK
         )
 
+
 class AvailableStudentsView(APIView):
     """Get available students & send room invites"""
     permission_classes = [IsAuthenticated, IsStudent]
 
     def get(self, request):
-        # Exclude users who are already in a room group and non-students
-        occupied_users = RoomGroup.objects.values_list("members", flat=True)
-        available_students = User.objects.filter(
-            user_type="student"
-        ).exclude(id__in=occupied_users).exclude(id=request.user.id)
-        serializer = AvailableStudentSerializer(
-            available_students, many=True, context={"request": request}
-        )
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            # Get the requesting user's StudentDataEntry
+            student_data = StudentDataEntry.objects.get(user=request.user)
+            
+            # Get IDs of users in RoomGroups with matching gender and class_name
+            occupied_users = RoomGroup.objects.filter(
+                gender=student_data.gender,
+                class_name=student_data.class_name
+            ).values_list("members__id", flat=True)
+
+            # Filter available students by user_type, class_name, gender
+            available_students = User.objects.filter(
+                user_type="student",
+                data_entry__class_name=student_data.class_name,
+                data_entry__gender=student_data.gender
+            ).exclude(id__in=occupied_users).exclude(id=request.user.id)
+
+            # Serialize the results
+            serializer = AvailableStudentSerializer(
+                available_students,
+                many=True,
+                context={"request": request}
+            )
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except StudentDataEntry.DoesNotExist:
+            return Response(
+                {"error": "Student data not found for this user"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def post(self, request):
         receiver_id = request.data.get("receiver_id")
@@ -93,6 +115,13 @@ class AvailableStudentsView(APIView):
                     {"error": "User is already in a room"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+            # Check if sender's group is full
+            sender_groups = request.user.room_groups.all()
+            if sender_groups.exists() and sender_groups.first().members.count() >= 4:
+                return Response(
+                    {"error": "Your room group is already full"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             # Check for existing invite
             invite, created = RoomInvite.objects.get_or_create(
@@ -112,6 +141,7 @@ class AvailableStudentsView(APIView):
 
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 class RoomInvitesView(APIView):
     """Get sent and received invites & manage them"""
@@ -158,6 +188,7 @@ class RoomInvitesView(APIView):
 
                 # Add receiver to sender's room (or create a new one)
                 sender_rooms = invite.sender.room_groups.all()
+                sender_data = StudentDataEntry.objects.get(user=invite.sender)
                 if sender_rooms.exists():
                     room = sender_rooms.first()
                 else:
@@ -167,7 +198,7 @@ class RoomInvitesView(APIView):
                     while RoomGroup.objects.filter(name=base_name).exists():
                         base_name = f"Room-{invite.sender.username}-{suffix}"
                         suffix += 1
-                    room = RoomGroup.objects.create(name=base_name)
+                    room = RoomGroup.objects.create(name=base_name, gender=sender_data.gender, class_name=sender_data.class_name)
                     room.members.add(invite.sender)
 
                 # Prevent duplicate membership
@@ -201,12 +232,12 @@ class RoomListView(APIView):
     def get(self, request):
         try:
             # Get user's year and gender from StudentDataEntry
-            # student_data = StudentMain.objects.get(user=request.user)
-            # year = student_data.class_name
-            # gender = student_data.gender
+            student_data = StudentDataEntry.objects.get(user=request.user)
+            year = student_data.class_name
+            gender = student_data.gender
 
             # Fetch blocks matching user's year and gender
-            blocks = Block.objects.prefetch_related('floors__rooms')
+            blocks = Block.objects.filter(class_name=year, gender=gender).prefetch_related('floors__rooms')
             serializer = BlockSerializer(blocks, many=True)
             
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -221,6 +252,7 @@ class RoomListView(APIView):
                 {"error": "An error occurred while fetching rooms"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 class PreferenceView(APIView):
     permission_classes = [IsAuthenticated]
@@ -239,21 +271,26 @@ class PreferenceView(APIView):
     def post(self, request):
         try:
             group = request.user.room_groups.get()
+            # Check if group has exactly 4 members
+            if group.members.count() != 4:
+                return Response(
+                    {"error": "Room group must have exactly 4 members to save preferences"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             serializer = PreferenceSubmitSerializer(data=request.data, context={'request': request})
             
             if serializer.is_valid():
                 preferences = serializer.validated_data['preferences']
-                # student_data = request.user.student_data_entry
+                student_data = StudentDataEntry.objects.get(user=request.user)
                 
                 Preference.objects.filter(room_group=group).delete()
                 
                 for rank, room_id in enumerate(preferences, 1):
-                    # room = Room.objects.get(
-                    #     room_id=room_id,
-                    #     floor__block__year=student_data.year,
-                    #     floor__block__gender=student_data.gender
-                    # )
-                    room = Room.objects.get(room_id=room_id)
+                    room = Room.objects.get(
+                        room_id=room_id,
+                        floor__block__year=student_data.year,
+                        floor__block__gender=student_data.gender
+                    )
                     Preference.objects.create(
                         room_group=group,
                         room=room,

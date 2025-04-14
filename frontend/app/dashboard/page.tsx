@@ -21,16 +21,29 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+interface Member {
+  username: string;
+  first_name: string;
+  last_name: string | null;
+  branch: string;
+}
+
 interface RoomStatus {
   id: number;
   name: string;
-  members: string[];
+  members: Member[];
 }
 
 interface Invite {
   id: number;
   sender: string;
+  sender_first_name: string;
+  sender_last_name: string | null;
+  sender_branch: string;
   receiver: string;
+  receiver_first_name: string;
+  receiver_last_name: string | null;
+  receiver_branch: string;
   status: string;
   timestamp: string;
 }
@@ -48,12 +61,12 @@ export default function DashboardPage() {
   });
   const [loadingRoom, setLoadingRoom] = useState(true);
   const [loadingInvites, setLoadingInvites] = useState(true);
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push("/?auth=login"); // Changed from /login
+      router.push("/?auth=login");
     }
   }, [authLoading, isAuthenticated, router]);
 
@@ -103,16 +116,15 @@ export default function DashboardPage() {
     (invite) => invite.status === "pending"
   ).length;
 
-  const parseMember = (member: string) => {
-    const nameMatch = member.match(/^(.*?)\s*\(/);
-    const name = nameMatch ? nameMatch[1].trim() : member;
-    const initials = name
+  const getMemberDisplay = (member: Member) => {
+    const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
+    const initials = fullName
       .split(" ")
       .map((part) => part[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-    return { name, initials };
+    return { fullName, initials };
   };
 
   const handleLeaveRoom = async () => {
@@ -237,10 +249,10 @@ export default function DashboardPage() {
           <div className="space-y-4">
             {roomStatus && roomStatus.members.length > 0 ? (
               roomStatus.members.map((member, index) => {
-                const { name, initials } = parseMember(member);
+                const { fullName, initials } = getMemberDisplay(member);
                 return (
                   <div
-                    key={index}
+                    key={member.username}
                     className="flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
@@ -248,13 +260,13 @@ export default function DashboardPage() {
                         {initials}
                       </div>
                       <div>
-                        <div className="font-medium">{name}</div>
+                        <div className="font-medium">{fullName}</div>
                         <div className="text-sm text-muted-foreground">
-                          Computer Science
+                          {member.username}, {member.branch}
                         </div>
                       </div>
                     </div>
-                    {index === 0 && (
+                    {member.username === user?.username && (
                       <div className="text-xs bg-primary/10 px-2 py-1 rounded">
                         You
                       </div>

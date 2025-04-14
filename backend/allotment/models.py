@@ -18,26 +18,26 @@ class RoomInvite(models.Model):
 
 class Block(models.Model):
     GENDER_CHOICES = (
-        ('M', 'Boys'),
-        ('F', 'Girls'),
+        ('male', 'Male'),
+        ('female', 'Female'),
     )
-    YEAR_CHOICES = (
-        ('1', '1st Year'),
-        ('2', '2nd Year'),
-        ('3', '3rd Year'),
-        ('4', '4th Year'),
+    CLASS_CHOICES = (
+        ('fy', 'First Year'),
+        ('sy', 'Second Year'),
+        ('ty', 'Third Year'),
+        ('btech', 'Final Year'),
     )
 
     name = models.CharField(max_length=50, unique=True)
-    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    year = models.CharField(max_length=1, choices=YEAR_CHOICES)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
+    class_name = models.CharField(max_length=10, choices=CLASS_CHOICES, default='fy')
     description = models.TextField(blank=True)
 
     def __str__(self):
         return f"{self.name} ({self.get_gender_display()}, {self.get_year_display()})"
 
     class Meta:
-        indexes = [models.Index(fields=['gender', 'year'])]
+        indexes = [models.Index(fields=['gender', 'class_name'])]
 
 class Floor(models.Model):
     block = models.ForeignKey(Block, on_delete=models.CASCADE, related_name='floors')
@@ -66,8 +66,21 @@ class Room(models.Model):
         ordering = ['room_id']
 
 class RoomGroup(models.Model):
+    GENDER_CHOICES = (
+        ('male', 'Male'),
+        ('female', 'Female'),
+    )
+    CLASS_CHOICES = (
+        ('fy', 'First Year'),
+        ('sy', 'Second Year'),
+        ('ty', 'Third Year'),
+        ('btech', 'Final Year'),
+    )
+
     name = models.CharField(max_length=100)
     members = models.ManyToManyField(User, related_name="room_groups")
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='male')
+    class_name = models.CharField(max_length=10, choices=CLASS_CHOICES, default='fy')
 
     def __str__(self):
         return self.name

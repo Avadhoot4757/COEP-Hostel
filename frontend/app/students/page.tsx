@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import api from "@/lib/api"; // Import the Axios utility
+import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,9 +27,11 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface Student {
-  mis: string;
-  name: string;
-  branch: string | null;
+  id: number;
+  username: string;
+  first_name: string;
+  last_name: string | null;
+  branch: string;
 }
 
 export default function StudentsPage() {
@@ -62,9 +64,10 @@ export default function StudentsPage() {
 
   const handleInvite = async (receiverId: number) => {
     try {
-      const response = await api.post("/allot/student-available/", { receiver_id: receiverId });
+      const response = await api.post("/allot/student-available/", {
+        receiver_id: receiverId,
+      });
       alert(response.data.message);
-      // Refresh students list
       const updatedResponse = await api.get("/allot/student-available/");
       setStudents(updatedResponse.data);
     } catch (error: any) {
@@ -73,42 +76,13 @@ export default function StudentsPage() {
     }
   };
 
-  // const handleAction = async (receiverId: number, action: "accept" | "reject") => {
-  //   try {
-  //     // Note: Backend endpoint for accept/reject not provided; assuming a placeholder
-  //     const response = await api.post(`/allot/invite-action/`, {
-  //       receiver_id: receiverId,
-  //       action,
-  //     });
-  //     alert(response.data.message);
-  //     // Refresh students list
-  //     const updatedResponse = await api.get("/allot/student-available/");
-  //     setStudents(updatedResponse.data);
-  //   } catch (error: any) {
-  //     console.error(`Error ${action}ing invite:`, error);
-  //     alert(error.response?.data?.error || `Failed to ${action} invite`);
-  //   }
-  // };
-
-  // const handleRemoveRoommate = async (receiverId: number) => {
-  //   try {
-  //     // Note: Backend endpoint for removing roommate not provided; assuming a placeholder
-  //     const response = await api.post(`/allot/remove-roommate/`, {
-  //       receiver_id: receiverId,
-  //     });
-  //     alert(response.data.message);
-  //     // Refresh students list
-  //     const updatedResponse = await api.get("/allot/student-available/");
-  //     setStudents(updatedResponse.data);
-  //   } catch (error: any) {
-  //     console.error("Error removing roommate:", error);
-  //     alert(error.response?.data?.error || "Failed to remove roommate");
-  //   }
-  // };
-
-  // Filter students based on search and branch
   const filteredStudents = students.filter((student) => {
-    const matchesSearch = student.username.toLowerCase().includes(search.toLowerCase());
+    const fullName = [student.first_name, student.last_name]
+      .filter(Boolean)
+      .join(" ");
+    const matchesSearch =
+      student.username.toLowerCase().includes(search.toLowerCase()) ||
+      fullName.toLowerCase().includes(search.toLowerCase());
     const matchesBranch =
       branchFilter === "all-branches" ||
       (branchFilter === "cs" && student.branch === "Computer Science") ||
@@ -128,7 +102,7 @@ export default function StudentsPage() {
 
       <div className="flex gap-4 mb-8">
         <Input
-          placeholder="Search by name..."
+          placeholder="Search by name or MIS..."
           className="max-w-sm"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -161,7 +135,11 @@ export default function StudentsPage() {
             {filteredStudents.map((student) => (
               <tr key={student.id} className="border-b last:border-0">
                 <td className="p-4">{student.username}</td>
-                <td className="p-4">{student.username}</td>
+                <td className="p-4">
+                  {[student.first_name, student.last_name]
+                    .filter(Boolean)
+                    .join(" ")}
+                </td>
                 <td className="p-4">{student.branch || "N/A"}</td>
                 <td className="p-4 text-right">
                   <AlertDialog>
@@ -172,12 +150,15 @@ export default function StudentsPage() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Sending this invite will request {student.username} to join your room group.
+                          Sending this invite will request {student.first_name}{" "}
+                          {student.last_name || ""} to join your room group.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleInvite(student.id)}>
+                        <AlertDialogAction
+                          onClick={() => handleInvite(student.id)}
+                        >
                           Confirm Invite
                         </AlertDialogAction>
                       </AlertDialogFooter>
