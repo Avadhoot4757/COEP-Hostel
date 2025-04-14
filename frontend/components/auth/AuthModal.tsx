@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,16 +117,25 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
           token,
         });
       }
-
-      login({
+      // console.log("printing the user type somehow as ",response.data.user.user_type);
+      const userData = {
         username: isLogin
           ? (formData.get("mis") as string)
           : response.data.user?.username,
-      });
+        user_type: response.data.user.user_type,
+      };
+      localStorage.setItem("authToken", response.data.token);  //checking 
+      login(userData);
 
       alert(isLogin ? "Login successful!" : "Registration successful!");
       onClose();
-      router.push("/landing");
+      // console.log("trying to pring the current user via USER",User);
+      console.log("going in landing page with ",userData.user_type);
+      if(userData.user_type==='rector'){
+        router.push("/rectorHome");
+      }else{
+        router.push("/landing");
+      }
     } catch (error: any) {
       console.error("Authentication error:", error);
       setErrors({

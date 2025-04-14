@@ -10,82 +10,139 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
+// Event mapping between frontend and backend - Updated to match the new backend structure
+const EVENT_MAPPING = {
+  registrationStart: { name: "Registration Start Date", event: "Registration", dateType: "start_date", description: "When students can begin registering for hostel allocation" },
+  registrationEnd: { name: "Registration End Date", event: "Registration", dateType: "end_date", description: "Last date for students to register" },
+  resultDeclaration: { name: "Result Declaration Date", event: "Result Declaration", dateType: "start_date", description: "When initial results will be declared" },
+  roommakingStart: { name: "Room Making Process Start Date", event: "Roommaking", dateType: "start_date", description: "When students can begin selecting roommates" },
+  roommakingEnd: { name: "Room Making Process End Date", event: "Roommaking", dateType: "end_date", description: "Last date for selecting roommates" },
+  finalAllotment: { name: "Final Room Allotment Declaration Date", event: "Final Allotment", dateType: "start_date", description: "When final room allotments will be announced" },
+  verificationStart: { name: "Offline Verification Start Date", event: "Verification", dateType: "start_date", description: "When physical verification begins" },
+  verificationEnd: { name: "Offline Verification End Date", event: "Verification", dateType: "end_date", description: "Last date for physical verification" },
+};
+
 interface DateSetting {
   id: string;
   name: string;
   date: string;
   description: string;
+  eventType: string;
+  dateType: string;
 }
 
 export default function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState("set-dates");
   const [dates, setDates] = useState<DateSetting[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notification, setNotification] = useState<{type: "success" | "error", message: string} | null>(null);
 
-  // Fetch initial dates from the /adminrole/setDates endpoint
+  // Fetch initial dates from the backend
   useEffect(() => {
+    setLoading(true);
+    setError(null);
+    
     fetch("http://127.0.0.1:8000/adminrole/setDates/", {
-      headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+      credentials: 'include',
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch dates: ${res.status}`);
+        }
+        return res.json();
+      })
       .then((data) => {
-        console.log("inside hello ", data);
-        const initialDates: DateSetting[] = [
-          { id: "registrationStart", name: "Registration Start Date", date: data.registrationStart || "", description: "When students can begin registering for hostel allocation" },
-          { id: "registrationEnd", name: "Registration End Date", date: data.registrationEnd || "", description: "Last date for students to register" },
-          { id: "resultDeclaration", name: "Result Declaration Date", date: data.resultDeclaration || "", description: "When initial results will be declared" },
-          { id: "roommakingStart", name: "Room Making Process Start Date", date: data.roommakingStart || "", description: "When students can begin selecting roommates" },
-          { id: "roommakingEnd", name: "Room Making Process End Date", date: data.roommakingEnd || "", description: "Last date for selecting roommates" },
-          { id: "finalAllotment", name: "Final Room Allotment Declaration Date", date: data.finalAllotment || "", description: "When final room allotments will be announced" },
-          { id: "verificationStart", name: "Offline Verification Start Date", date: data.verificationStart || "", description: "When physical verification begins" },
-          { id: "verificationEnd", name: "Offline Verification End Date", date: data.verificationEnd || "", description: "Last date for physical verification" },
-        ];
+        const initialDates: DateSetting[] = Object.entries(EVENT_MAPPING).map(([id, info]) => ({
+          id,
+          name: info.name,
+          date: data[id] || "",
+          description: info.description,
+          eventType: info.event,
+          dateType: info.dateType
+        }));
+        
         setDates(initialDates);
+        setLoading(false);
       })
       .catch((error) => {
         console.error("Error fetching dates:", error);
+        setError("Failed to load dates. Please refresh the page or contact support.");
+        
         // Fallback to default empty dates if API fails
-        setDates([
-          { id: "registrationStart", name: "Registration Start Date", date: "", description: "When students can begin registering for hostel allocation" },
-          { id: "registrationEnd", name: "Registration End Date", date: "", description: "Last date for students to register" },
-          { id: "resultDeclaration", name: "Result Declaration Date", date: "", description: "When initial results will be declared" },
-          { id: "roommakingStart", name: "Room Making Process Start Date", date: "", description: "When students can begin selecting roommates" },
-          { id: "roommakingEnd", name: "Room Making Process End Date", date: "", description: "Last date for selecting roommates" },
-          { id: "finalAllotment", name: "Final Room Allotment Declaration Date", date: "", description: "When final room allotments will be announced" },
-          { id: "verificationStart", name: "Offline Verification Start Date", date: "", description: "When physical verification begins" },
-          { id: "verificationEnd", name: "Offline Verification End Date", date: "", description: "Last date for physical verification" },
-        ]);
+        const fallbackDates: DateSetting[] = Object.entries(EVENT_MAPPING).map(([id, info]) => ({
+          id,
+          name: info.name,
+          date: "",
+          description: info.description,
+          eventType: info.event,
+          dateType: info.dateType
+        }));
+        
+        setDates(fallbackDates);
+        setLoading(false);
       });
-  }, []); // Runs once on component mount
+  }, []);
+
+  // Clear notification after 5 seconds
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
 
   const handleDateChange = (id: string, newDate: string) => {
     setDates(dates.map((date) => (date.id === id ? { ...date, date: newDate } : date)));
   };
 
-  const handleSaveDates = () => {
-    // Prepare data for POST request
-    const dataToSave = dates.reduce((acc, date) => {
-      acc[date.id] = date.date || null; // Send null for empty dates
-      return acc;
-    }, {} as { [key: string]: string | null });
-    console.log(dataToSave);
-    fetch("http://127.0.0.1:8000/adminrole/setDates/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-      },
-      body: JSON.stringify(dataToSave),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        alert(data.message || "Dates saved successfully!");
-        setActiveTab("current-dates");
-      })
-      .catch((error) => {
-        console.error("Error saving dates:", error);
-        alert("Failed to save dates. Please try again.");
+  const handleSaveDates = async () => {
+    try {
+      // Format the data for the backend
+      const dataToSave = dates.reduce((acc, date) => {
+        if (date.date) {
+          acc[date.id] = date.date;
+        }
+        return acc;
+      }, {} as { [key: string]: string });
+      
+      const response = await fetch("http://127.0.0.1:8000/adminrole/setDates/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(dataToSave),
       });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to save dates: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      setNotification({
+        type: "success",
+        message: result.status || "Dates saved successfully!"
+      });
+      
+      setActiveTab("current-dates");
+    } catch (error) {
+      console.error("Error saving dates:", error);
+      
+      setNotification({
+        type: "error",
+        message: "Failed to save dates. Please try again."
+      });
+    }
   };
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">Loading dates...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -98,7 +155,23 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
-      {dates.every((date) => date.date === "") && (
+      {notification && (
+        <Alert variant={notification.type === "error" ? "destructive" : "default"}>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>{notification.type === "success" ? "Success" : "Error"}</AlertTitle>
+          <AlertDescription>{notification.message}</AlertDescription>
+        </Alert>
+      )}
+
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {!error && dates.every((date) => date.date === "") && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Important</AlertTitle>
@@ -222,8 +295,12 @@ export default function SuperAdminDashboard() {
             <Clock className="h-4 w-4 text-gray-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">0%</div>
-            <p className="text-xs text-gray-500">Process not started</p>
+            <div className="text-2xl font-bold">
+              {dates.some(date => date.date && new Date(date.date) < new Date()) ? "In Progress" : "0%"}
+            </div>
+            <p className="text-xs text-gray-500">
+              {dates.some(date => date.date && new Date(date.date) < new Date()) ? "Process started" : "Process not started"}
+            </p>
           </CardContent>
         </Card>
       </div>

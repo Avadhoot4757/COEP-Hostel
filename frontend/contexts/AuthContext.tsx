@@ -12,6 +12,7 @@ import api from "@/lib/api";
 
 interface User {
   username: string;
+  user_type:string;
 }
 
 interface AuthContextType {
