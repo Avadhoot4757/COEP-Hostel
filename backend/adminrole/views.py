@@ -76,11 +76,19 @@ class RejectedStudentsView(APIView):
         except StudentDataEntry.DoesNotExist:
             return Response({"error": "Student not found or not rejected."}, status=status.HTTP_404_NOT_FOUND)
 
+
 class setDatesView(APIView):
     permission_classes=[IsAuthenticated]
+    
     def get(self, request):
-        # Fetching the dates from database as model instances
-        dates = SelectDates.objects.all()
+        # Get the year parameter from the request, default to first_year
+        year_param = request.query_params.get('year', 'first_year')
+        
+        # Normalize the year parameter (convert "First Year" to "first_year")
+        normalized_year = year_param.lower().replace(" ", "_")
+        
+        # Fetching the dates from database for the specified year
+        dates = SelectDates.objects.filter(year=normalized_year)
         
         # Create a response dictionary
         date_dict = {
@@ -111,7 +119,9 @@ class setDatesView(APIView):
                 date_dict['verificationEnd'] = date_obj.end_date.isoformat() if date_obj.end_date else ''
         
         return Response(date_dict)
-    giveid = {
+    
+    # Event ID mapping
+    event_id_map = {
         "Registration": 1,
         "Result Declaration": 2,
         "Roommaking": 3,
@@ -122,6 +132,10 @@ class setDatesView(APIView):
     def post(self, request):
         data = request.data
         print(data)  # For debugging purposes
+        
+        # Extract the year from the request data
+        year = data.get('year', 'first_year')  # Default to first_year if not provided
+        dates_data = data.get('dates', data)  # If the data is nested, get the 'dates' field, otherwise use the whole data
         
         # Group dates by their event types
         event_buffer = {}
@@ -139,7 +153,7 @@ class setDatesView(APIView):
         }
         
         # Process each key in the request data
-        for key, date_str in data.items():
+        for key, date_str in dates_data.items():
             if key in key_mapping:
                 event_name, date_type = key_mapping[key]
                 
@@ -171,18 +185,10 @@ class setDatesView(APIView):
                     event_buffer[event_name][date_type] = date_only
         
         # Save to the database
-        event_id_map = {
-            "Registration": 1,
-            "Result Declaration": 2,
-            "Roommaking": 3,
-            "Final Allotment": 4,
-            "Verification": 5
-        }
-        
         for event, dates in event_buffer.items():
-            # Get existing record if any
+            # Get existing record if any for this year
             try:
-                event_obj = SelectDates.objects.get(event=event)
+                event_obj = SelectDates.objects.get(event=event, year=year)
                 # Update only the provided dates
                 if 'start_date' in dates:
                     event_obj.start_date = dates['start_date']
@@ -192,7 +198,8 @@ class setDatesView(APIView):
             except SelectDates.DoesNotExist:
                 # Create new record with default values
                 defaults = {
-                    'event_id': event_id_map.get(event, 0),
+                    'event_id': self.event_id_map.get(event, 0),
+                    'year': year,
                     'start_date': dates.get('start_date'),
                     'end_date': dates.get('end_date', dates.get('start_date'))  # Default end date to start date if not provided
                 }
@@ -204,8 +211,8 @@ class setDatesView(APIView):
                         **{k: v for k, v in defaults.items() if v is not None}
                     )
         
-        return Response({"status": "Dates updated successfully!"})
-            
+        return Response({"status": f"Dates for {year.replace('_', ' ').title()} updated successfully!"})
+
 # class setDatesView(APIView):
 #     permission_classes=[IsAuthenticated]
 #     def get(self,request):
