@@ -36,7 +36,7 @@ import { Alert, AlertDescription } from "@/components/applicationform/ui/alert";
 import { FileUploadField } from "@/components/applicationform/FileUploadField";
 
 const MultiStepForm = () => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const methods = useForm({
     mode: "all",
@@ -81,14 +81,15 @@ const MultiStepForm = () => {
   const [categories, setCategories] = useState([]);
   const [castes, setCastes] = useState([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isFetching, setIsFetching] = useState(true); // New state for fetch loading
 
   const caste = watch("caste", "");
   const className = watch("class_name", "");
 
   // Debug auth state
   useEffect(() => {
-    console.log("Apply page auth:", { loading, isAuthenticated, user });
-  }, [loading, isAuthenticated, user]);
+    console.log("Apply page auth:", { authLoading, isAuthenticated, user });
+  }, [authLoading, isAuthenticated, user]);
 
   // Set roll_no
   useEffect(() => {
@@ -99,16 +100,16 @@ const MultiStepForm = () => {
 
   // Fetch data
   useEffect(() => {
-    if (loading || !isAuthenticated) return;
+    if (authLoading || !isAuthenticated) return;
 
     const fetchData = async () => {
+      setIsFetching(true);
       try {
         console.log("Fetching form data...");
         const statusRes = await api.get("/auth/apply/");
         if (statusRes.data.message === "Form already submitted") {
           setHasSubmitted(true);
-          toast.error("You have already submitted the application form.");
-          router.push("/");
+          setIsFetching(false);
           return;
         }
 
@@ -124,15 +125,26 @@ const MultiStepForm = () => {
       } catch (error) {
         console.error("Fetch error:", error);
         toast.error("Failed to load form options.");
+      } finally {
+        setIsFetching(false);
       }
     };
 
     fetchData();
-  }, [loading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated]);
 
   // Render checks
-  if (loading) {
-    return <div>Loading...</div>;
+  if (authLoading || isFetching) {
+    return (
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-screen">
+        <Card className="max-w-3xl mx-auto shadow-lg bg-white border border-gray-200">
+          <CardContent className="p-6 flex flex-col items-center">
+            <Loader2 className="h-12 w-12 animate-spin text-gray-700" />
+            <p className="mt-4 text-gray-700">Loading application data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
@@ -141,8 +153,50 @@ const MultiStepForm = () => {
     return null;
   }
 
+  // Render "Form Already Submitted" or "Form Submitted Successfully" page
   if (hasSubmitted) {
-    return null;
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Card className="max-w-3xl mx-auto shadow-lg bg-white border border-gray-200">
+          <CardHeader className="bg-gradient-to-r from-slate-800 to-slate-700">
+            <CardTitle className="text-2xl text-white">
+              Application Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 bg-white">
+            <Alert className="bg-amber-50 border-amber-200">
+              <AlertCircle className="!text-amber-600 h-4 w-4" />
+              <AlertDescription className="text-amber-800">
+                You have submitted the Hostel Admission Application Form.
+              </AlertDescription>
+            </Alert>
+            <div className="mt-4">
+              <p className="text-gray-700">
+                If you need further assistance, please contact the hostel
+                administration office.
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end border-t p-6 bg-white">
+            <Button
+              onClick={async () => {
+                try {
+                  await logout(); // Call logout from AuthContext
+                } catch (error) {
+                  console.error("Logout error:", error);
+                  toast.error("Failed to logout. Redirecting to home...");
+                } finally {
+                  router.push("/");
+                }
+              }}
+              className="bg-black hover:bg-gray-500 text-white"
+            >
+              Logout and Return to Home
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
   }
 
   const totalSteps = caste === "OPEN" || caste === "EWS" ? 4 : 5;
@@ -195,7 +249,7 @@ const MultiStepForm = () => {
     const success = await sendDataToBackend(processedData);
     if (success) {
       toast.success("Form submitted successfully!");
-      router.push("/");
+      setHasSubmitted(true); // Show "Form Already Submitted" window
     } else {
       toast.error("Failed to submit form. Please try again.");
     }
@@ -521,7 +575,7 @@ const MultiStepForm = () => {
                         defaultValue={watch("entrance_exam")}
                       >
                         <SelectTrigger className="bg-white text-black border border-gray-300">
-                          <SelectValue placeholder="Select Entrance Exam" />
+                          ConstanceValue placeholder="Select Entrance Exam" />
                         </SelectTrigger>
                         <SelectContent className="bg-white text-black border border-gray-300">
                           <SelectItem
@@ -1237,84 +1291,84 @@ const MultiStepForm = () => {
                         required: "Emergency contact number is required",
                         pattern: {
                           value: /^[0-9]{10}$/,
-                            message: "Enter a valid 10-digit contact number",
-                          },
-                        })}
-                      />
-                      {errors.emergency_contact && (
-                        <p className="text-sm text-red-500">
-                          {errors.emergency_contact.message}
-                        </p>
-                      )}
-                    </div>
+                          message: "Enter a valid 10-digit contact number",
+                        },
+                      })}
+                    />
+                    {errors.emergency_contact && (
+                      <p className="text-sm text-red-500">
+                        {errors.emergency_contact.message}
+                      </p>
+                    )}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Documents */}
-                {step === totalSteps && (
-                  <div className="space-y-4">
-                    <FileUploadField
-                      name="application_form"
-                      label="Upload duly signed scan copy of Hostel Admission Application form 2025-26"
-                    />
-                    <FileUploadField
-                      name="hostel_no_dues"
-                      label="Upload scan copy of Hostel No Dues Certificate of AY 2024-25"
-                    />
-                    <FileUploadField
-                      name="mess_no_dues"
-                      label="Upload scan copy of Mess No Dues Certificate of AY 2024-25"
-                    />
+              {/* Documents */}
+              {step === totalSteps && (
+                <div className="space-y-4">
+                  <FileUploadField
+                    name="application_form"
+                    label="Upload duly signed scan copy of Hostel Admission Application form 2025-26"
+                  />
+                  <FileUploadField
+                    name="hostel_no_dues"
+                    label="Upload scan copy of Hostel No Dues Certificate of AY 2024-25"
+                  />
+                  <FileUploadField
+                    name="mess_no_dues"
+                    label="Upload scan copy of Mess No Dues Certificate of AY 2024-25"
+                  />
 
-                    <Button
-                      type="submit"
-                      className="w-full mt-4 bg-black hover:bg-gray-500 text-white"
-                      disabled={Object.keys(errors).length > 0 || isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                          Submit Application
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-
-              <CardFooter className="flex justify-between border-t p-6 bg-white">
-                {step > 1 && (
                   <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setStep(step - 1)}
-                    className="flex items-center bg-white text-gray-700 border border-gray-300 hover:bg-gray-500"
+                    type="submit"
+                    className="w-full mt-4 bg-black hover:bg-gray-500 text-white"
+                    disabled={Object.keys(errors).length > 0 || isSubmitting}
                   >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Submit Application
+                      </>
+                    )}
                   </Button>
-                )}
-                {step < totalSteps && (
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    className="ml-auto flex items-center bg-black hover:bg-gray-500 text-white"
-                  >
-                    Next
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                )}
-              </CardFooter>
-            </form>
-          </FormProvider>
-        </Card>
-      </div>
-    );
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter className="flex justify-between border-t p-6 bg-white">
+              {step > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(step - 1)}
+                  className="flex items-center bg-white text-gray-700 border border-gray-300 hover:bg-gray-500"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              )}
+              {step < totalSteps && (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  className="ml-auto flex items-center bg-black hover:bg-gray-500 text-white"
+                >
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </CardFooter>
+          </form>
+        </FormProvider>
+      </Card>
+    </div>
+  );
 };
 
 export default MultiStepForm;

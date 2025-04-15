@@ -331,6 +331,7 @@ class LoginAPIView(APIView):
                         "user": {
                             "username": user.username,
                             "user_type":user.user_type,
+                            "class_name":user.class_name,
                         },
                     },
                     status=status.HTTP_200_OK,
