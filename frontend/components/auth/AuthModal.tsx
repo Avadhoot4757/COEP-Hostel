@@ -133,6 +133,8 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
       console.log("going in landing page with ",userData.user_type);
       if(userData.user_type==='rector'){
         router.push("/rectorHome");
+      }else if(userData.user_type==='manager'){
+        router.push("/managerHome");
       }else{
         router.push("/landing");
       }

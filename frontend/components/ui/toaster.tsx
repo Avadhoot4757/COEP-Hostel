@@ -1,4 +1,5 @@
 // components/ui/toaster.tsx
+"use client"
 import {
     Toast,
     ToastClose,

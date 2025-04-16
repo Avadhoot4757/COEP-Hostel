@@ -6,6 +6,9 @@ class CustomUser(AbstractUser):
         ('student', 'Student'),
         ('warden', 'Warden'),
         ('rector', 'Rector'),
+
+        ('manager','Manager'),
+        
     )
     user_type = models.CharField(max_length=10, choices=USER_TYPES, default='student')
     email = models.EmailField(unique=True)
