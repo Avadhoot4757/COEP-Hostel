@@ -2,11 +2,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from authentication.models import StudentDataEntry
-from .serializers import StudentDataEntrySerializer
+from .serializers import *
 from authentication.permissions import IsRector, IsWarden
 from rest_framework.permissions import IsAuthenticated
-from .models  import SelectDates
+from .models  import *
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.utils import timezone
 
 # class PendingStudentsView(APIView):
 #     """Handles listing and verifying/rejecting pending students."""
@@ -77,142 +78,42 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 #             return Response({"error": "Student not found or not rejected."}, status=status.HTTP_404_NOT_FOUND)
 
 
-class setDatesView(APIView):
-    permission_classes=[IsAuthenticated]
-    
+class SetDatesView(APIView):
+    permission_classes = [IsAuthenticated, IsRector]
+
     def get(self, request):
-        # Get the year parameter from the request, default to first_year
-        year_param = request.query_params.get('year', 'first_year')
-        
-        # Normalize the year parameter (convert "First Year" to "first_year")
-        normalized_year = year_param.lower().replace(" ", "_")
-        
-        # Fetching the dates from database for the specified year
-        dates = SelectDates.objects.filter(year=normalized_year)
-        
-        # Create a response dictionary
-        date_dict = {
-            'registrationStart': '',
-            'registrationEnd': '',
-            'resultDeclaration': '',
-            'roommakingStart': '',
-            'roommakingEnd': '',
-            'finalAllotment': '',
-            'verificationStart': '',
-            'verificationEnd': ''
-        }
-        
-        # Process each date record
-        for date_obj in dates:
-            if date_obj.event == 'Registration':
-                date_dict['registrationStart'] = date_obj.start_date.isoformat() if date_obj.start_date else ''
-                date_dict['registrationEnd'] = date_obj.end_date.isoformat() if date_obj.end_date else ''
-            elif date_obj.event == 'Result Declaration':
-                date_dict['resultDeclaration'] = date_obj.start_date.isoformat() if date_obj.start_date else ''
-            elif date_obj.event == 'Roommaking':
-                date_dict['roommakingStart'] = date_obj.start_date.isoformat() if date_obj.start_date else ''
-                date_dict['roommakingEnd'] = date_obj.end_date.isoformat() if date_obj.end_date else ''
-            elif date_obj.event == 'Final Allotment':
-                date_dict['finalAllotment'] = date_obj.start_date.isoformat() if date_obj.start_date else ''
-            elif date_obj.event == 'Verification':
-                date_dict['verificationStart'] = date_obj.start_date.isoformat() if date_obj.start_date else ''
-                date_dict['verificationEnd'] = date_obj.end_date.isoformat() if date_obj.end_date else ''
-        
-        return Response(date_dict)
-    
-    # Event ID mapping
-    event_id_map = {
-        "Registration": 1,
-        "Result Declaration": 2,
-        "Roommaking": 3,
-        "Final Allotment": 4,
-        "Verification": 5
-    }
+        year = request.query_params.get("year")
+        if year:
+            dates = SelectDates.objects.filter(year=year.lower().replace(" ", "_"))
+        else:
+            dates = SelectDates.objects.all()
+        serializer = SelectDatesSerializer(dates, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         data = request.data
-        print(data)  # For debugging purposes
-        
-        # Extract the year from the request data
-        year = data.get('year', 'first_year')  # Default to first_year if not provided
-        dates_data = data.get('dates', data)  # If the data is nested, get the 'dates' field, otherwise use the whole data
-        
-        # Group dates by their event types
-        event_buffer = {}
-        
-        # Map frontend keys to events and their date types
-        key_mapping = {
-            'registrationStart': ('Registration', 'start_date'),
-            'registrationEnd': ('Registration', 'end_date'),
-            'resultDeclaration': ('Result Declaration', 'both_dates'),  # Use both for single date events
-            'roommakingStart': ('Roommaking', 'start_date'),
-            'roommakingEnd': ('Roommaking', 'end_date'),
-            'finalAllotment': ('Final Allotment', 'both_dates'),  # Use both for single date events
-            'verificationStart': ('Verification', 'start_date'),
-            'verificationEnd': ('Verification', 'end_date')
-        }
-        
-        # Process each key in the request data
-        for key, date_str in dates_data.items():
-            if key in key_mapping:
-                event_name, date_type = key_mapping[key]
-                
-                # Initialize event in buffer if not already present
-                if event_name not in event_buffer:
-                    event_buffer[event_name] = {}
-                
-                # Parse the date string
-                try:
-                    parsed_date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M")
-                    date_only = parsed_date.date()
-                except ValueError:
-                    try:
-                        # Try alternate format if the first one fails
-                        parsed_date = datetime.strptime(date_str, "%Y-%m-%d")
-                        date_only = parsed_date.date()
-                    except ValueError:
-                        return Response(
-                            {"error": f"Invalid date format for '{key}': '{date_str}'"},
-                            status=400
-                        )
-                
-                # Store in buffer
-                if date_type == 'both_dates':
-                    # For single-date events, store the same date as both start and end
-                    event_buffer[event_name]['start_date'] = date_only
-                    event_buffer[event_name]['end_date'] = date_only
-                else:
-                    event_buffer[event_name][date_type] = date_only
-        
-        # Save to the database
-        for event, dates in event_buffer.items():
-            # Get existing record if any for this year
-            try:
-                event_obj = SelectDates.objects.get(event=event, year=year)
-                # Update only the provided dates
-                if 'start_date' in dates:
-                    event_obj.start_date = dates['start_date']
-                if 'end_date' in dates:
-                    event_obj.end_date = dates['end_date']
-                event_obj.save()
-            except SelectDates.DoesNotExist:
-                # Create new record with default values
-                defaults = {
-                    'event_id': self.event_id_map.get(event, 0),
-                    'year': year,
-                    'start_date': dates.get('start_date'),
-                    'end_date': dates.get('end_date', dates.get('start_date'))  # Default end date to start date if not provided
-                }
-                
-                # Only create if we have at least a start date
-                if defaults['start_date']:
-                    SelectDates.objects.create(
-                        event=event,
-                        **{k: v for k, v in defaults.items() if v is not None}
-                    )
-        
-        return Response({"status": f"Dates for {year.replace('_', ' ').title()} updated successfully!"})
+        if not isinstance(data, list):
+            return Response(
+                {"error": "Request data must be a list of events."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
+        required_events = {
+            "Registration",
+            "Student Data Verification",
+            "Result Declaration",
+            "Roommaking",
+            "Final Allotment",
+            "Verification",
+        }
+        provided_events = {item.get("event") for item in data}
+        if provided_events != required_events:
+            return Response(
+                {"error": f"All events must be provided: {', '.join(required_events)}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+<<<<<<< HEAD
 # class setDatesView(APIView):
 #     permission_classes=[IsAuthenticated]
 #     def get(self,request):
@@ -496,3 +397,38 @@ class StudentsByYearView(APIView):
         students = StudentDataEntry.objects.filter(class_name=year)
         serializer = StudentDataEntrySerializer(students, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+=======
+        results = []
+        errors = []
+
+        # Validate years
+        all_years = {item.get("years", []) for item in data}
+        if len(all_years) > 1:
+            return Response(
+                {"error": "All events must apply to the same years."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        years = all_years.pop() if all_years else []
+
+        # Clear existing dates for unselected years (optional, if cleanup needed)
+        # SelectDates.objects.exclude(year__in=years).delete()
+
+        for item in data:
+            serializer = SelectDatesSerializer(data=item, context={"request": request})
+            if serializer.is_valid():
+                serializer.save()
+                results.append({"event": item["event"], "status": "success"})
+            else:
+                errors.append({"event": item.get("event"), "errors": serializer.errors})
+
+        if errors:
+            return Response(
+                {"results": results, "errors": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {"message": "Dates saved successfully", "results": results},
+            status=status.HTTP_200_OK,
+        )
+>>>>>>> fde8694e7fb4e082c17d936838f6142b7caade1e

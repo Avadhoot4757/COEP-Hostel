@@ -1,6 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
+# myapp/models.py
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
 class CustomUser(AbstractUser):
     USER_TYPES = (
         ('student', 'Student'),
@@ -10,11 +14,37 @@ class CustomUser(AbstractUser):
         ('manager','Manager'),
         
     )
+
+    CLASS_CHOICES = [
+        ("fy", "First Year"),
+        ("sy", "Second Year"),
+        ("ty", "Third Year"),
+        ("btech", "Final Year"),
+    ]
+
     user_type = models.CharField(max_length=10, choices=USER_TYPES, default='student')
     email = models.EmailField(unique=True)
 
+    class_name = models.CharField(
+        max_length=10,
+        choices=CLASS_CHOICES,
+        default='ty',
+        null=True,
+        blank=True,
+        help_text="Only applicable for students",
+    )
+
     def __str__(self):
         return f"{self.username} ({self.user_type})"
+
+    def save(self, *args, **kwargs):
+        # Ensure branch and class_name are only set for students
+        if self.user_type != 'student':
+            self.class_name = None
+        else:
+            if self.class_name and self.class_name not in dict(self.CLASS_CHOICES):
+                raise ValueError(f"Invalid class_name: {self.class_name}")
+        super().save(*args, **kwargs)
 
 class Branch(models.Model):
     branch = models.CharField(max_length=100, unique=True, primary_key=True)
@@ -68,6 +98,7 @@ class StudentDataEntry(models.Model):
     admission_category = models.ForeignKey(AdmissionCategory, on_delete=models.DO_NOTHING)
     roll_no = models.CharField(max_length=20, primary_key=True)
     rank = models.IntegerField(null=True, blank=True)
+    branch_rank = models.IntegerField(null=True, blank=True, help_text="Rank within branch and gender")
     cgpa = models.FloatField(null=True, blank=True)
     caste = models.ForeignKey(Caste, on_delete=models.DO_NOTHING)
     creamy_layer = models.BooleanField(default=False)
