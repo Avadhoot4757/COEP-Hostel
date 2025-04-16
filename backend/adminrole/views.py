@@ -9,6 +9,8 @@ from .models  import *
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 
+User = get_user_model()
+
 # class PendingStudentsView(APIView):
 #     """Handles listing and verifying/rejecting pending students."""
 
@@ -403,4 +405,93 @@ class StudentsByYearView(APIView):
             
         students = StudentDataEntry.objects.filter(class_name=year)
         serializer = StudentDataEntrySerializer(students, many=True)
+        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+User = get_user_model()
+
+class WardensView(APIView):
+    permission_classes = [IsAuthenticated, IsRector]
+
+    def get(self, request):
+        """List all wardens."""
+        wardens = User.objects.filter(user_type="warden")
+        serializer = UserSerializer(wardens, many=True)
+        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """Add a new warden."""
+        serializer = UserCreateSerializer(data={**request.data, "user_type": "warden"})
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(
+                {"message": "Warden created successfully.", "data": UserSerializer(user).data},
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            {"error": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def delete(self, request, user_id):
+        """Delete a warden."""
+        try:
+            user = User.objects.get(id=user_id, user_type="warden")
+            user.delete()
+            return Response(
+                {"message": "Warden deleted successfully."},
+                status=status.HTTP_200_OK
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Warden not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class ManagersView(APIView):
+    permission_classes = [IsAuthenticated, IsRector]
+
+    def get(self, request):
+        """List all managers."""
+        managers = User.objects.filter(user_type="manager")
+        serializer = UserSerializer(managers, many=True)
+        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        """Add a new manager."""
+        serializer = UserCreateSerializer(data={**request.data, "user_type": "manager"})
+        if serializer.is_valid():
+            user = serializer.save()
+            return Response(
+                {"message": "Manager created successfully.", "data": UserSerializer(user).data},
+                status=status.HTTP_201_CREATED
+            )
+        return Response(
+            {"error": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def delete(self, request, user_id):
+        """Delete a manager."""
+        try:
+            user = User.objects.get(id=user_id, user_type="manager")
+            user.delete()
+            return Response(
+                {"message": "Manager deleted successfully."},
+                status=status.HTTP_200_OK
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Manager not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class StudentsView(APIView):
+    permission_classes = [IsAuthenticated, IsRector]
+
+    def get(self, request):
+        """List all students."""
+        students = User.objects.filter(user_type="student")
+        serializer = UserSerializer(students, many=True)
         return Response({"data": serializer.data}, status=status.HTTP_200_OK)

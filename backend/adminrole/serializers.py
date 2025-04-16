@@ -4,6 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from authentication.models import *
 from .models import *
 from django.utils import timezone
+from django.contrib.auth import get_user_model
 
 class StudentDataEntrySerializer(serializers.ModelSerializer):
     class Meta:
@@ -207,3 +208,47 @@ class SelectDatesSerializer(serializers.ModelSerializer):
             "end_date": instance.end_date.isoformat() if instance.end_date else None,
             "year": instance.year,
         }
+
+User = get_user_model()
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email", "user_type", "class_name"]
+
+    def to_representation(self, instance):
+        # Exclude class_name for non-students
+        ret = super().to_representation(instance)
+        if instance.user_type != "student":
+            ret.pop("class_name", None)
+        return ret
+
+class UserCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+    user_type = serializers.ChoiceField(choices=User.USER_TYPES)
+    class_name = serializers.ChoiceField(
+        choices=User.CLASS_CHOICES, required=False, allow_null=True
+    )
+
+    class Meta:
+        model = User
+        fields = ["username", "email", "password", "user_type", "class_name"]
+
+    def validate(self, data):
+        # Ensure class_name is only set for students
+        if data.get("user_type") == "student":
+            if not data.get("class_name"):
+                raise serializers.ValidationError({"class_name": "Class name is required for students."})
+        elif data.get("class_name"):
+            raise serializers.ValidationError({"class_name": "Class name is only applicable for students."})
+        return data
+
+    def create(self, validated_data):
+        user = User.objects.create_user(
+            username=validated_data["username"],
+            email=validated_data["email"],
+            password=validated_data["password"],
+            user_type=validated_data["user_type"],
+            class_name=validated_data.get("class_name"),
+        )
+        return user

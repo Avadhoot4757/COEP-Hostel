@@ -3,17 +3,19 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Menu, X, Home, Users, Building, Shield } from "lucide-react"
+import { Menu, X, Home, Users, Shield, Briefcase } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 export function SuperAdminNavbar() {
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
+  const { logout } = useAuth()
 
   const navItems = [
-    { name: "Dashboard", href: "/superadmin", icon: <Home className="h-5 w-5" /> },
-    { name: "Wardens", href: "/superadmin/wardens", icon: <Shield className="h-5 w-5" /> },
-    { name: "Students", href: "/superadmin/students", icon: <Users className="h-5 w-5" /> },
-    { name: "BVG", href: "/superadmin/bvg", icon: <Building className="h-5 w-5" /> },
+    { name: "Dashboard", href: "/rectorHome", icon: <Home className="h-5 w-5" /> },
+    { name: "Wardens", href: "/rectorHome/wardens", icon: <Shield className="h-5 w-5" /> },
+    { name: "Managers", href: "/rectorHome/managers", icon: <Briefcase className="h-5 w-5" /> },
+    { name: "Students", href: "/rectorHome/students", icon: <Users className="h-5 w-5" /> },
   ]
 
   return (
@@ -22,7 +24,7 @@ export function SuperAdminNavbar() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/superadmin" className="font-bold text-xl">
+              <Link href="/rectorHome" className="font-bold text-xl">
                 Hostel Allocation System
               </Link>
             </div>
@@ -44,12 +46,12 @@ export function SuperAdminNavbar() {
             </div>
           </div>
           <div className="flex items-center">
-            <Link
-              href="/"
+            <button
+              onClick={() => logout()}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
             >
               Logout
-            </Link>
+            </button>
           </div>
           <div className="-mr-2 flex items-center sm:hidden">
             <button
