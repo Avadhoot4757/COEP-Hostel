@@ -141,18 +141,17 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
 
       alert(isLogin ? "Login successful!" : "Registration successful!");
       onClose();
-<<<<<<< HEAD
       // console.log("trying to pring the current user via USER",User);
       console.log("going in landing page with ",userData.user_type);
-      if(userData.user_type==='rector'){
+      if(userData.user_type==='manager'){
+        router.push("/managerHome");
+      }if(userData.user_type==='rector'){
         router.push("/rectorHome");
       }else if(userData.user_type==='manager'){
         router.push("/managerHome");
       }else{
         router.push("/landing");
       }
-=======
->>>>>>> fde8694e7fb4e082c17d936838f6142b7caade1e
     } catch (error: any) {
       console.error("Authentication error:", error);
       setErrors({

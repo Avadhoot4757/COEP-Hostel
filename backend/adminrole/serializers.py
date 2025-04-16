@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
-from authentication.models import StudentDataEntry
+from authentication.models import *
 from .models import *
 from django.utils import timezone
 
@@ -10,24 +10,21 @@ class StudentDataEntrySerializer(serializers.ModelSerializer):
         model = StudentDataEntry
         fields = '__all__'
 
-from rest_framework import serializers
-<<<<<<< HEAD
-from authentication.models import StudentDataEntry, Branch, AdmissionCategory, Caste
 
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Branch
-        fields = ['id', 'name']
+        fields = '__all__'
 
 class AdmissionCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = AdmissionCategory
-        fields = ['id', 'name']
+        fields = '__all__'
 
 class CasteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Caste
-        fields = ['id', 'name']
+        fields = '__all__'
 
 class StudentDataEntrySerializer(serializers.ModelSerializer):
     """Serializer for basic student information in list views."""
@@ -73,10 +70,6 @@ class StudentDetailSerializer(serializers.ModelSerializer):
                     representation[field] = request.build_absolute_uri(representation[field])
                     
         return representation
-=======
-from .models import SelectDates
-from django.utils import timezone
-
 
 class SelectDatesSerializer(serializers.ModelSerializer):
     years = serializers.ListField(
@@ -214,4 +207,3 @@ class SelectDatesSerializer(serializers.ModelSerializer):
             "end_date": instance.end_date.isoformat() if instance.end_date else None,
             "year": instance.year,
         }
->>>>>>> fde8694e7fb4e082c17d936838f6142b7caade1e

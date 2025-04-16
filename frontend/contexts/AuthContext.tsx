@@ -36,6 +36,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const getRedirectPath = async (user: User): Promise<string> => {
     console.log("getRedirectPath called with user:", user); // Debug
+    if(user.user_type === "manager") {
+      return "/managerHome";
+    }
     if (user.user_type === "rector") {
       return "/rectorHome";
     }
