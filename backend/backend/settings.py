@@ -32,6 +32,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'django_crontab',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -177,3 +178,26 @@ EMAIL_HOST_PASSWORD = 'izkb yqsh bviy ptta'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': '/home/avadhoot/projects/COEP-Hostel/logs/django.log',
+        },
+    },
+    'loggers': {
+        'allotment': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+CRONJOBS = [
+    ('0 1 * * *', 'allotment.cron.assign_branch_ranks', '>> /home/avadhoot/projects/COEP-Hostel/logs/cron.log 2>&1'),
+]

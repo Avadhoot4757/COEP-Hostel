@@ -36,7 +36,7 @@ import { Alert, AlertDescription } from "@/components/applicationform/ui/alert";
 import { FileUploadField } from "@/components/applicationform/FileUploadField";
 
 const MultiStepForm = () => {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
   const router = useRouter();
   const methods = useForm({
     mode: "all",
@@ -80,10 +80,12 @@ const MultiStepForm = () => {
   const [branches, setBranches] = useState([]);
   const [categories, setCategories] = useState([]);
   const [castes, setCastes] = useState([]);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isFetching, setIsFetching] = useState(true); // New state for fetch loading
 
   useEffect(() => {
-    console.log("Apply page auth:", { loading, isAuthenticated, user });
-  }, [loading, isAuthenticated, user]);
+    console.log("Apply page auth:", { authLoading, isAuthenticated, user });
+  }, [authLoading, isAuthenticated, user]);
 
   // Set roll_no
   useEffect(() => {
@@ -94,16 +96,16 @@ const MultiStepForm = () => {
 
   // Fetch data
   useEffect(() => {
-    if (loading || !isAuthenticated) return;
+    if (authLoading || !isAuthenticated) return;
 
     const fetchData = async () => {
+      setIsFetching(true);
       try {
         console.log("Fetching form data...");
         const statusRes = await api.get("/auth/apply/");
         if (statusRes.data.message === "Form already submitted") {
           setHasSubmitted(true);
-          toast.error("You have already submitted the application form.");
-          router.push("/");
+          setIsFetching(false);
           return;
         }
 
@@ -119,34 +121,83 @@ const MultiStepForm = () => {
       } catch (error) {
         console.error("Fetch error:", error);
         toast.error("Failed to load form options.");
+      } finally {
+        setIsFetching(false);
       }
     };
-  
-    fetchDropdownOptions();
-  }, []);
-  
-  const router = useRouter();
-  const method = useForm({mode: "all"})
-  const {
-    register,
-    handleSubmit,
-    watch,
-    trigger,
-    setValue,
-    formState: { errors, isSubmitting},
-  } = method;
 
-  const [step, setStep] = useState(1);
-  const caste = watch("caste", "");
-  const year = watch("class_name", "");
+    fetchData();
+  }, [authLoading, isAuthenticated]);
 
-  // Get the total number of steps for the selected caste
-  const totalSteps = caste === "OPEN" || caste === "EWS" ? 4 : 5
+  // Render checks
+  if (authLoading || isFetching) {
+    return (
+      <div className="container mx-auto py-8 px-4 flex items-center justify-center min-h-screen">
+        <Card className="max-w-3xl mx-auto shadow-lg bg-white border border-gray-200">
+          <CardContent className="p-6 flex flex-col items-center">
+            <Loader2 className="h-12 w-12 animate-spin text-gray-700" />
+            <p className="mt-4 text-gray-700">Loading application data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  // Calculate progress percentage
-  const progressPercentage = (step / totalSteps) * 100
+  if (!isAuthenticated) {
+    console.log("Redirecting to login from /apply");
+    router.push("/?auth=login");
+    return null;
+  }
 
-  // Step titles
+  // Render "Form Already Submitted" or "Form Submitted Successfully" page
+  if (hasSubmitted) {
+    return (
+      <div className="container mx-auto py-8 px-4">
+        <Card className="max-w-3xl mx-auto shadow-lg bg-white border border-gray-200">
+          <CardHeader className="bg-gradient-to-r from-slate-800 to-slate-700">
+            <CardTitle className="text-2xl text-white">
+              Application Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 bg-white">
+            <Alert className="bg-amber-50 border-amber-200">
+              <AlertCircle className="!text-amber-600 h-4 w-4" />
+              <AlertDescription className="text-amber-800">
+                You have submitted the Hostel Admission Application Form.
+              </AlertDescription>
+            </Alert>
+            <div className="mt-4">
+              <p className="text-gray-700">
+                If you need further assistance, please contact the hostel
+                administration office.
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex justify-end border-t p-6 bg-white">
+            <Button
+              onClick={async () => {
+                try {
+                  await logout(); // Call logout from AuthContext
+                } catch (error) {
+                  console.error("Logout error:", error);
+                  toast.error("Failed to logout. Redirecting to home...");
+                } finally {
+                  router.push("/");
+                }
+              }}
+              className="bg-black hover:bg-gray-500 text-white"
+            >
+              Logout and Return to Home
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  const totalSteps = caste === "OPEN" || caste === "EWS" ? 4 : 5;
+  const progressPercentage = (step / totalSteps) * 100;
+
   const getStepTitle = (stepNumber) => {
     if (stepNumber === 1) return "Basic Details";
     if (caste !== "OPEN" && caste !== "EWS" && stepNumber === 2)
@@ -194,7 +245,7 @@ const MultiStepForm = () => {
     const success = await sendDataToBackend(processedData);
     if (success) {
       toast.success("Form submitted successfully!");
-      router.push("/");
+      setHasSubmitted(true); // Show "Form Already Submitted" window
     } else {
       toast.error("Failed to submit form. Please try again.");
     }
@@ -415,32 +466,159 @@ const MultiStepForm = () => {
                   <Input type="hidden" {...register("gender", { required: "Gender is required" })} />
                   {errors.gender && <p className="text-sm text-red-500">{errors.gender.message}</p>}
                   </div>
-          
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="branch">
-                      Branch
-                    </Label>
-                    <Select onValueChange={(value) => {setValue("branch", value); trigger("branch");}} defaultValue={watch("branch")}>
-                      <SelectTrigger className="bg-white text-black border border-gray-300">
-                        <SelectValue placeholder="Select Branch" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white text-black border border-gray-300 ">
-                        <SelectItem className="hover:bg-gray-200" value="CIVIL">Civil</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="COMPUTER">Computer Science</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="ENTC">Electronics & Telecommunication</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="ELECTRICAL">Electrical</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="INSTRUMENTATION">Instrumentation</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="MECHANICAL">Mechanical</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="METALLURGY">Metallurgy</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="MANUFACTURING">Manufacturing</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="PLANNING">Planning</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input type="hidden" {...register("branch", { required: "Branch is required" })} />
-                    {errors.branch && <p className="text-sm text-red-500">{errors.branch.message}</p>}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="mobile_number">
+                        Student Mobile Number
+                      </Label>
+                      <Input
+                        id="mobile_number"
+                        placeholder="10-digit mobile number"
+                        className="bg-white text-black border border-gray-300"
+                        {...register("mobile_number", {
+                          required: "Mobile number is required",
+                          pattern: {
+                            value: /^[0-9]{10}$/,
+                            message: "Enter a valid 10-digit number",
+                          },
+                        })}
+                      />
+                      {errors.mobile_number && (
+                        <p className="text-sm text-red-500">
+                          {errors.mobile_number.message}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="class_name">
+                        Class
+                      </Label>
+                      <Select
+                        onValueChange={(value) => {
+                          setValue("class_name", value);
+                          trigger("class_name");
+                        }}
+                        defaultValue={watch("class_name")}
+                      >
+                        <SelectTrigger className="bg-white text-black border border-gray-300">
+                          <SelectValue placeholder="Select Class" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white text-black border border-gray-300">
+                          <SelectItem className="hover:bg-gray-200" value="fy">
+                            First Year
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="sy">
+                            Second Year
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="ty">
+                            Third Year
+                          </SelectItem>
+                          <SelectItem
+                            className="hover:bg-gray-200"
+                            value="btech"
+                          >
+                            Final Year
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="hidden"
+                        {...register("class_name", { required: "Class is required" })}
+                      />
+                      {errors.class_name && (
+                        <p className="text-sm text-red-500">
+                          {errors.class_name.message}
+                        </p>
+                      )}
+                    </div>
                   </div>
+
+                  {className === "fy" && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="entrance_exam">
+                        Entrance Exam
+                      </Label>
+                      <Select
+                        onValueChange={(value) => {
+                          setValue("entrance_exam", value);
+                          trigger("entrance_exam");
+                        }}
+                        defaultValue={watch("entrance_exam")}
+                      >
+                        <SelectTrigger className="bg-white text-black border border-gray-300">
+                          ConstanceValue placeholder="Select Entrance Exam" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white text-black border border-gray-300">
+                          <SelectItem
+                            className="hover:bg-gray-200"
+                            value="jee_mains"
+                          >
+                            JEE Mains
+                          </SelectItem>
+                          <SelectItem
+                            className="hover:bg-gray-200"
+                            value="mht_cet"
+                          >
+                            MHT-CET
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="hidden"
+                        {...register("entrance_exam", {
+                          required:
+                            className === "fy"
+                              ? "Entrance exam is required for First Year"
+                              : false,
+                        })}
+                      />
+                      {errors.entrance_exam && (
+                        <p className="text-sm text-red-500">
+                          {errors.entrance_exam.message}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="branch">
+                        Branch
+                      </Label>
+                      <Select
+                        onValueChange={(value) => {
+                          setValue("branch", value);
+                          trigger("branch");
+                        }}
+                        defaultValue={watch("branch")}
+                      >
+                        <SelectTrigger className="bg-white text-black border border-gray-300">
+                          <SelectValue placeholder="Select Branch" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white text-black border border-gray-300">
+                          {branches.map((b) => (
+                            <SelectItem
+                              key={b.branch}
+                              className="hover:bg-gray-200"
+                              value={b.branch}
+                            >
+                              {b.branch}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="hidden"
+                        {...register("branch", { required: "Branch is required" })}
+                      />
+                      {errors.branch && (
+                        <p className="text-sm text-red-500">
+                          {errors.branch.message}
+                        </p>
+                      )}
+                    </div>
 
                   <div className="space-y-2">
                     <Label className="text-gray-700" htmlFor="caste">
@@ -1006,106 +1184,79 @@ const MultiStepForm = () => {
                       })}
                     />
                     {errors.emergency_contact && (
-                      <p className="text-sm text-red-500">{errors.emergency_contact.message}</p>
+                      <p className="text-sm text-red-500">
+                        {errors.emergency_contact.message}
+                      </p>
                     )}
                   </div>
                 </div>
+              )}
 
-                <div className="space-y-2">
-                  <Label className="text-gray-700" htmlFor="local_guardian_address">
-                    Local address
-                  </Label>
-                  <Input
-                    id="local_guardian_address"
-                    placeholder="Enter local address"
-                    className="bg-white text-black border border-gray-300"
-                    {...register("local_guardian_address", { required: "Local address is required" })}
+              {/* Documents */}
+              {step === totalSteps && (
+                <div className="space-y-4">
+                  <FileUploadField
+                    name="application_form"
+                    label="Upload duly signed scan copy of Hostel Admission Application form 2025-26"
                   />
-                  {errors.local_guardian_address && <p className="text-sm text-red-500">{errors.local_guardian_address.message}</p>}
+                  <FileUploadField
+                    name="hostel_no_dues"
+                    label="Upload scan copy of Hostel No Dues Certificate of AY 2024-25"
+                  />
+                  <FileUploadField
+                    name="mess_no_dues"
+                    label="Upload scan copy of Mess No Dues Certificate of AY 2024-25"
+                  />
+
+                  <Button
+                    type="submit"
+                    className="w-full mt-4 bg-black hover:bg-gray-500 text-white"
+                    disabled={Object.keys(errors).length > 0 || isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                        Submit Application
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </div>
-            )}
+              )}
+            </CardContent>
 
-            {/* Documents */}
-            {step === totalSteps && (
-              <div className="space-y-4">
-                
-                {/*<div className="space-y-2" >
-                  <Label className="text-gray-700" htmlFor="application_form">
-                    Upload duly signed scan copy of Hostel Admission Application form 2025-26
-                  </Label>
-                  <p className="text-xs text-gray-500">
-                    Make a PDF file of your application form and name it with your MIS number
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="application_form"
-                      type="file"
-                      className="bg-white text-black border border-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200"
-                      accept=".pdf,.jpg,.png"
-                      onChange={(e) => handleFileChange(e, "application_form")}
-                    />
-                    <FileText className="h-5 w-5 text-slate-500" />
-                  </div>
-                  <Input type="hidden" {...register("application_form", { required: "This field is required" })} />
-                  {errors.application_form && <p className="text-sm text-red-500">{errors.application_form.message}</p>}
-                </div> */}
-                
-                <FileUploadField name="application_form" label="Upload duly signed scan copy of Hostel Admission Application form 2025-26"/>
-                
-                <FileUploadField name="hostel_no_dues" label="Upload scan copy of Hostel No Dues Certificate of AY 2024-25"></FileUploadField>
-
-                <FileUploadField name="mess_no_dues" label="Upload scan copy of Mess No Dues Certificate of AY 2024-25"></FileUploadField>
-
-                    <Button
-                      type="submit"
-                      className="w-full mt-4 bg-black hover:bg-gray-500 text-white"
-                      disabled={Object.keys(errors).length > 0 || isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Submitting...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="mr-2 h-4 w-4" />
-                          Submit Application
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-
-          <CardFooter className="flex justify-between border-t p-6 bg-white">
-            {step > 1 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setStep(step - 1)}
-                className="flex items-center bg-white text-gray-700 border border-gray-300 hover:bg-gray-500"
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
-              </Button>
-            )}
-            {step < totalSteps && (
-              <Button
-                type="button"
-                onClick={handleNext}
-                className="ml-auto flex items-center bg-black hover:bg-gray-500 text-white"
-              >
-                Next
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            )}
-          </CardFooter>
-        </form>
+            <CardFooter className="flex justify-between border-t p-6 bg-white">
+              {step > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(step - 1)}
+                  className="flex items-center bg-white text-gray-700 border border-gray-300 hover:bg-gray-500"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              )}
+              {step < totalSteps && (
+                <Button
+                  type="button"
+                  onClick={handleNext}
+                  className="ml-auto flex items-center bg-black hover:bg-gray-500 text-white"
+                >
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </CardFooter>
+          </form>
         </FormProvider>
       </Card>
     </div>
-  )
-}
+  );
+};
 
 export default MultiStepForm;

@@ -273,6 +273,7 @@ class VerifyOTPAPIView(APIView):
                             "message": "Verification successful. You can log in now.",
                             "access_token": tokens['access'],
                             "refresh_token": tokens['refresh'],
+                            "user_type":"student",
                         },
                         status=status.HTTP_200_OK,
                     )
@@ -321,7 +322,7 @@ class LoginAPIView(APIView):
             password = serializer.validated_data['password']
 
             user = authenticate(request, username=username, password=password)
-
+            print(f"hello printint user {user} also ueser type as {user.user_type}")
             if user:
                 tokens = get_tokens_for_user(user)
                 response = Response(
@@ -329,6 +330,8 @@ class LoginAPIView(APIView):
                         "message": "Login successful",
                         "user": {
                             "username": user.username,
+                            "user_type":user.user_type,
+                            "class_name":user.class_name,
                         },
                     },
                     status=status.HTTP_200_OK,

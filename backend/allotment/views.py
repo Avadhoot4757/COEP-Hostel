@@ -5,10 +5,22 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from authentication.permissions import IsStudent
 from .models import *
+from adminrole.models import *
 from .serializers import *
 
 User = get_user_model()
 
+class UserEventsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != 'student':
+            return JsonResponse({"events": []}, status=200)
+
+        events = SelectDates.objects.filter(year=request.user.class_name).values(
+            'event', 'year', 'start_date', 'end_date'
+        )
+        return Response({"events": list(events)}, status=200)
 
 class RoomGroupStatusView(APIView):
     """ 

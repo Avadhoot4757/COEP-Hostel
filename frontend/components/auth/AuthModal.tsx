@@ -1,7 +1,8 @@
+// components/auth/AuthModal.tsx
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface AuthModalProps {
   isLogin: boolean;
-  setIsLogin: (isLogin: boolean) => void;
+  setIsLogin: (value: boolean) => void;
   onClose: () => void;
 }
 
@@ -23,6 +24,14 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
   const [token, setToken] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const router = useRouter();
+
+  // Map year numbers to class_name
+  const yearToClassName: { [key: string]: string } = {
+    "1": "fy",
+    "2": "sy",
+    "3": "ty",
+    "4": "btech",
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -81,12 +90,13 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
         const username = formData.get("mis") as string;
         const email = formData.get("email") as string;
         const password = formData.get("password") as string;
-        const year = parseInt(formData.get("year") as string);
+        const year = formData.get("year") as string;
+        const class_name = yearToClassName[year];
 
         const response = await api.post("/auth/signup/", {
           username,
           email,
-          year,
+          class_name, // Send class_name instead of year
           password,
         });
 
@@ -118,15 +128,30 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
         });
       }
 
-      login({
+      const userData = {
         username: isLogin
           ? (formData.get("mis") as string)
           : response.data.user?.username,
-      });
+        user_type: response.data.user.user_type,
+        class_name: response.data.user.class_name,
+      };
+
+      console.log("User data before login:", userData); // Debug
+      await login(userData);
 
       alert(isLogin ? "Login successful!" : "Registration successful!");
       onClose();
-      router.push("/landing");
+      // console.log("trying to pring the current user via USER",User);
+      console.log("going in landing page with ",userData.user_type);
+      if(userData.user_type==='manager'){
+        router.push("/managerHome");
+      }if(userData.user_type==='rector'){
+        router.push("/rectorHome");
+      }else if(userData.user_type==='manager'){
+        router.push("/managerHome");
+      }else{
+        router.push("/landing");
+      }
     } catch (error: any) {
       console.error("Authentication error:", error);
       setErrors({
