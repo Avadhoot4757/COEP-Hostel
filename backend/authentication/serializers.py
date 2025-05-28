@@ -3,11 +3,6 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from .models import *
 
-# serializers.py
-from rest_framework import serializers
-from django.core.exceptions import ObjectDoesNotExist
-from .models import StudentDataEntry, Branch, AdmissionCategory, Caste
-
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Branch
@@ -123,27 +118,29 @@ class StudentDataEntrySerializer(serializers.ModelSerializer):
 class SignupSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     email = serializers.EmailField()
-    year = serializers.CharField(max_length=20)
+    year = serializers.CharField(max_length=10)
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        # Check if passwords match
         if data['password'] != data['password2']:
             raise serializers.ValidationError({"password": "Passwords do not match!"})
 
+        if CustomUser.objects.filter(username=data['username']).exists():
+            raise serializers.ValidationError({"username": "A user with this username already exists!"})
+
         try:
-            student = StudentDataEntry.objects.get(roll_no=data['username'], year=data['year'])
-            if student.year == 'FirstYear':
-                if student.personal_mail != data['email']: 
-                    raise serializers.ValidationError({"student": "Student details don't match with database!"})
-            else:
-                if student.college_mail != data['email']:
-                    raise serializers.ValidationError({"student": "Student details don't match with database!"})
+            # Verify against StudentDataVerification
+            student = StudentDataVerification.objects.get(
+                roll_no=data['username'],
+                email=data['email'],
+                class_name=data['year']
+            )
         except ObjectDoesNotExist:
             raise serializers.ValidationError({"student": "Student details don't match with database!"})
 
         return data
-
 
 class OTPVerificationSerializer(serializers.Serializer):
     otp = serializers.CharField(max_length=6)

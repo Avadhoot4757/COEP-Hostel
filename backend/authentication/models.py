@@ -130,3 +130,15 @@ class StudentDataEntry(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name or ''} ({self.roll_no})"
+
+class StudentDataVerification(models.Model):
+    roll_no = models.CharField(max_length=20, primary_key=True)
+    email = models.EmailField(unique=True)
+    class_name = models.CharField(
+        max_length=10,
+        choices=CustomUser.CLASS_CHOICES,
+        help_text="Year of the student"
+    )
+
+    def __str__(self):
+        return f"{self.user.username} ({self.class_name})"

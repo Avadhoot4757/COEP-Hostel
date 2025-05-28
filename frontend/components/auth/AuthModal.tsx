@@ -90,14 +90,15 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
         const username = formData.get("mis") as string;
         const email = formData.get("email") as string;
         const password = formData.get("password") as string;
-        const year = formData.get("year") as string;
-        const class_name = yearToClassName[year];
+        const password2 = formData.get("password2") as string;
+        const year = yearToClassName[formData.get("year") as string];
 
         const response = await api.post("/auth/signup/", {
           username,
           email,
-          class_name, // Send class_name instead of year
+          year, // Send class_name instead of year
           password,
+          password2,
         });
 
         setOtpField(true);
@@ -129,14 +130,11 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
       }
 
       const userData = {
-        username: isLogin
-          ? (formData.get("mis") as string)
-          : response.data.user?.username,
+        username: response.data.user.username,
         user_type: response.data.user.user_type,
         class_name: response.data.user.class_name,
       };
 
-      console.log("User data before login:", userData); // Debug
       await login(userData);
 
       alert(isLogin ? "Login successful!" : "Registration successful!");
