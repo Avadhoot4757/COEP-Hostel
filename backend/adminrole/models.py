@@ -1,6 +1,5 @@
 from django.db import models
 
-
 class SelectDates(models.Model):
     EVENT_CHOICES = (
         ("Registration", "Registration"),
@@ -29,3 +28,36 @@ class SelectDates(models.Model):
     class Meta:
         ordering = ["year", "event_id"]
         unique_together = ["event_id", "year"]
+
+class ReservedSeat(models.Model):
+    goi_jk_seats = models.IntegerField(default=0)
+    nri_fn_pio_gulf_seats = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"Reserved Seats: GOI & J&K: {self.goi_jk_seats}, NRI/FN/PIO/Gulf: {self.nri_fn_pio_gulf_seats}"
+
+class SeatMatrix(models.Model):
+    YEAR_CHOICES = (
+        ("fy", "First Year"),
+        ("sy", "Second Year"),
+        ("ty", "Third Year"),
+        ("btech", "Fourth Year"),
+    )
+    GENDER_CHOICES = [
+        ("male", "Male"),
+        ("female", "Female"),
+    ]
+
+    year = models.CharField(max_length=10, choices=YEAR_CHOICES)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
+    total_seats = models.IntegerField()
+    ews_seats = models.IntegerField()
+    all_india_seats = models.IntegerField()
+    branch_seats = models.JSONField()  # Stores seat matrix as JSON
+    reserved_seats = models.ForeignKey('ReservedSeat', on_delete=models.CASCADE, null=True)
+
+    class Meta:
+        unique_together = ('year', 'gender')
+
+    def __str__(self):
+        return f"{self.year} - {self.gender} Seat Matrix"

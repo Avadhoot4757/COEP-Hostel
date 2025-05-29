@@ -3,13 +3,48 @@ from rest_framework.response import Response
 from rest_framework import status
 from authentication.models import StudentDataEntry
 from .serializers import *
-from authentication.permissions import IsManager, IsWarden, IsRector
+from authentication.permissions import *
 from rest_framework.permissions import IsAuthenticated
 from .models  import *
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 
 User = get_user_model()
+
+class SeatMatrixView(APIView):
+    permission_classes = [IsAuthenticated, IsStaffUser]
+
+    def get(self, request):
+        year = request.query_params.get('year')
+        gender = request.query_params.get('gender')
+        if not year or not gender:
+            return Response({"error": "Year and gender are required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            seat_matrix = SeatMatrix.objects.get(year=year, gender=gender)
+            serializer = SeatMatrixSerializer(seat_matrix)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except SeatMatrix.DoesNotExist:
+            return Response({"error": "Seat matrix not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        year = request.data.get('year')
+        gender = request.data.get('gender')
+        if year and gender:
+            try:
+                existing_matrix = SeatMatrix.objects.get(year=year, gender=gender)
+                # Delete the existing entry and its associated ReservedSeat
+                if existing_matrix.reserved_seats:
+                    existing_matrix.reserved_seats.delete()
+                existing_matrix.delete()
+            except SeatMatrix.DoesNotExist:
+                pass  # No existing entry, proceed with creation
+
+        serializer = SeatMatrixSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # class PendingStudentsView(APIView):
 #     """Handles listing and verifying/rejecting pending students."""

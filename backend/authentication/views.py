@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
-from authentication.permissions import IsStudent
+from authentication.permissions import *
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -34,6 +34,12 @@ from django.utils.decorators import method_decorator
 
 CustomUser = get_user_model()
 
+CLASS_CHOICES = [
+    ("fy", "First Year"),
+    ("sy", "Second Year"),
+    ("ty", "Third Year"),
+    ("btech", "Final Year"),
+]
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -54,50 +60,22 @@ class CurrentUser(APIView):
             'email': user.email
         })
 
-class BranchView(APIView):
-    def get(self, request):
-        # Students can fetch branches
-        if not request.user.is_authenticated or request.user.user_type != "student":
-            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
-        branches = Branch.objects.all()
-        serializer = BranchSerializer(branches, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        # Admins can create branches
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-        serializer = BranchSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        # Admins can delete branches
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-        try:
-            branch = Branch.objects.get(branch=pk)
-            branch.delete()
-            return Response({"message": "Branch deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-        except Branch.DoesNotExist:
-            return Response({"error": "Branch not found"}, status=status.HTTP_404_NOT_FOUND)
-
-
 class AdmissionCategoryView(APIView):
+    permission_classes = []
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        elif self.request.method in ['POST', 'DELETE']:
+            return [IsStaffUser()]
+        return [IsAuthenticated()]
+
     def get(self, request):
-        # Students can fetch categories
-        if not request.user.is_authenticated or request.user.user_type != "student":
-            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
         categories = AdmissionCategory.objects.all()
         serializer = AdmissionCategorySerializer(categories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        # Admins can create categories
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
         serializer = AdmissionCategorySerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -105,9 +83,6 @@ class AdmissionCategoryView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
-        # Admins can delete categories
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
         try:
             category = AdmissionCategory.objects.get(admission_category=pk)
             category.delete()
@@ -116,35 +91,125 @@ class AdmissionCategoryView(APIView):
             return Response({"error": "Admission category not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
-class CasteView(APIView):
+class BranchView(APIView):
+    permission_classes = []
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        elif self.request.method in ['POST', 'PUT', 'DELETE']:
+            return [IsStaffUser()]
+        return [IsAuthenticated()]
+
     def get(self, request):
-        # Students can fetch castes
-        if not request.user.is_authenticated or request.user.user_type != "student":
-            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
-        castes = Caste.objects.all()
-        serializer = CasteSerializer(castes, many=True)
+        year = request.query_params.get('year')
+        if not year:
+            return Response({"error": "Year parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if year not in [choice[0] for choice in CLASS_CHOICES]:
+            return Response({"error": "Invalid year value"}, status=status.HTTP_400_BAD_REQUEST)
+
+        branches = Branch.objects.filter(year=year)
+        serializer = BranchSerializer(branches, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        # Admins can create castes
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-        serializer = CasteSerializer(data=request.data)
+        serializer = BranchSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, pk):
-        # Admins can delete castes
-        if not request.user.is_authenticated or not request.user.is_staff:
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+    def put(self, request, pk):
+        year = request.query_params.get('year')
+        if not year:
+            return Response({"error": "Year parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            caste = Caste.objects.get(caste=pk)
+            branch = Branch.objects.get(branch=pk, year=year)
+            serializer = BranchSerializer(branch, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Branch.DoesNotExist:
+            return Response({"error": "Branch not found for the given year"}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        year = request.query_params.get('year')
+        if not year:
+            return Response({"error": "Year parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            branch = Branch.objects.get(branch=pk, year=year)
+            branch.delete()
+            return Response({"message": "Branch deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except Branch.DoesNotExist:
+            return Response({"error": "Branch not found for the given year"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class CasteView(APIView):
+    permission_classes = []
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        elif self.request.method in ['POST', 'PUT', 'DELETE']:
+            return [IsStaffUser()]
+        return [IsAuthenticated()]
+
+    def get(self, request):
+        year = request.query_params.get('year')
+        if not year:
+            return Response({"error": "Year parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if year not in [choice[0] for choice in CLASS_CHOICES]:
+            return Response({"error": "Invalid year value"}, status=status.HTTP_400_BAD_REQUEST)
+
+        castes = Caste.objects.filter(year=year)
+        serializer = CasteSerializer(castes, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = CasteSerializer(data=request.data)
+        if serializer.is_valid():
+            year = serializer.validated_data['year']
+            new_percentage = serializer.validated_data['seat_matrix_percentage']
+            current_total = sum(c.seat_matrix_percentage for c in Caste.objects.filter(year=year) if c.seat_matrix_percentage)
+            if current_total + new_percentage > 100:
+                return Response({"error": "Total percentage cannot exceed 100% for the given year"}, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pk):
+        year = request.query_params.get('year')
+        if not year:
+            return Response({"error": "Year parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            caste = Caste.objects.get(caste=pk, year=year)
+            serializer = CasteSerializer(caste, data=request.data, partial=True)
+            if serializer.is_valid():
+                new_percentage = serializer.validated_data.get('seat_matrix_percentage', caste.seat_matrix_percentage)
+                current_total = sum(c.seat_matrix_percentage for c in Caste.objects.filter(year=year) if c.seat_matrix_percentage and c != caste)
+                if current_total + new_percentage > 100:
+                    return Response({"error": "Total percentage cannot exceed 100% for the given year"}, status=status.HTTP_400_BAD_REQUEST)
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Caste.DoesNotExist:
+            return Response({"error": "Caste not found for the given year"}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        year = request.query_params.get('year')
+        if not year:
+            return Response({"error": "Year parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            caste = Caste.objects.get(caste=pk, year=year)
             caste.delete()
             return Response({"message": "Caste deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
         except Caste.DoesNotExist:
-            return Response({"error": "Caste not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Caste not found for the given year"}, status=status.HTTP_404_NOT_FOUND)
 
 
 class StudentDataEntryView(APIView):

@@ -15,3 +15,7 @@ class IsRector(BasePermission):
 class IsManager(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.user_type == 'manager'
+
+class IsStaffUser(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.user_type != 'student'

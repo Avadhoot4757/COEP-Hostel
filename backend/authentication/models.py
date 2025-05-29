@@ -40,21 +40,39 @@ class CustomUser(AbstractUser):
                 raise ValueError(f"Invalid class_name: {self.class_name}")
         super().save(*args, **kwargs)
 
-class Branch(models.Model):
-    branch = models.CharField(max_length=100, unique=True, primary_key=True)
-    def __str__(self):
-        return self.branch
-
 class AdmissionCategory(models.Model):
     admission_category = models.CharField(max_length=100, unique=True, primary_key=True)
+
     def __str__(self):
         return self.admission_category
 
-class Caste(models.Model):
-    caste = models.CharField(max_length=100, unique=True, primary_key=True)
-    seat_matrix_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+class Branch(models.Model):
+    branch = models.CharField(max_length=100)
+    year = models.CharField(max_length=10, choices=CustomUser.CLASS_CHOICES)
+    seat_allocation_weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('branch', 'year')  # Ensure uniqueness for branch-year combination
+        indexes = [
+            models.Index(fields=['year']),
+        ]
+
     def __str__(self):
-        return self.caste
+        return f"{self.branch} ({self.get_year_display()})"
+
+class Caste(models.Model):
+    caste = models.CharField(max_length=100)
+    year = models.CharField(max_length=10, choices=CustomUser.CLASS_CHOICES)
+    seat_matrix_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('caste', 'year')  # Ensure uniqueness for caste-year combination
+        indexes = [
+            models.Index(fields=['year']),
+        ]
+
+    def __str__(self):
+        return f"{self.caste} ({self.get_year_display()})"
 
 class StudentDataEntry(models.Model):
     BLOOD_GROUP_CHOICES = [
@@ -141,4 +159,4 @@ class StudentDataVerification(models.Model):
     )
 
     def __str__(self):
-        return f"{self.user.username} ({self.class_name})"
+        return f"{self.roll_no} ({self.class_name})"

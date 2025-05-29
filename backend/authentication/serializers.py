@@ -6,7 +6,7 @@ from .models import *
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Branch
-        fields = ['branch']
+        fields = ['branch', 'year', 'seat_allocation_weight']
 
 class AdmissionCategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,7 +16,7 @@ class AdmissionCategorySerializer(serializers.ModelSerializer):
 class CasteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Caste
-        fields = ['caste']
+        fields = ['caste', 'year', 'seat_matrix_percentage']
 
 class StudentDataEntrySerializer(serializers.ModelSerializer):
     branch = serializers.CharField()

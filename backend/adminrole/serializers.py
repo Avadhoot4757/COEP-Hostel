@@ -252,3 +252,24 @@ class UserCreateSerializer(serializers.ModelSerializer):
             class_name=validated_data.get("class_name"),
         )
         return user
+
+
+class ReservedSeatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReservedSeat
+        fields = ['id', 'goi_jk_seats', 'nri_fn_pio_gulf_seats']
+
+class SeatMatrixSerializer(serializers.ModelSerializer):
+    reserved_seats = ReservedSeatSerializer()
+
+    class Meta:
+        model = SeatMatrix
+        fields = ['id', 'year', 'gender', 'total_seats', 'ews_seats', 'all_india_seats', 'branch_seats', 'reserved_seats']
+
+    def create(self, validated_data):
+        # Extract nested reserved_seats data
+        reserved_seats_data = validated_data.pop('reserved_seats', None)
+        if reserved_seats_data:
+            reserved_seats = ReservedSeat.objects.create(**reserved_seats_data)
+            validated_data['reserved_seats'] = reserved_seats
+        return SeatMatrix.objects.create(**validated_data)
