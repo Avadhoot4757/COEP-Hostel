@@ -38,7 +38,7 @@ class StudentDataEntrySerializer(serializers.ModelSerializer):
         fields = [
             'roll_no', 'first_name', 'middle_name', 'last_name',
             'class_name', 'branch', 'admission_category', 'caste',
-            'verified'
+            'verified', 'gender'
         ]
 
 class StudentDetailSerializer(serializers.ModelSerializer):

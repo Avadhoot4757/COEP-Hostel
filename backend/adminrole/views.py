@@ -430,14 +430,15 @@ class StudentDetailView(APIView):
 class StudentsByYearView(APIView):
     permission_classes = [IsAuthenticated, IsManager]
 
-    def get(self, request, year):
+    def get(self, request):
         """Return students filtered by year (class_name)."""
+        year = request.query_params.get('class_name')
         if year not in dict(StudentDataEntry.CLASS_CHOICES).keys():
             return Response(
                 {"error": "Invalid year."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-            
+
         students = StudentDataEntry.objects.filter(class_name=year)
         serializer = StudentDataEntrySerializer(students, many=True)
         return Response({"data": serializer.data}, status=status.HTTP_200_OK)

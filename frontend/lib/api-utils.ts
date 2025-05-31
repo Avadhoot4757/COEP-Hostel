@@ -1,27 +1,39 @@
 import api from "@/lib/api";
 
-export async function fetchStudentsByYear(year: string, status: "pending" | "verified" | "rejected") {
-  let endpoint = "";
+// export async function fetchStudentsByYear(year: string, status: "pending" | "verified" | "rejected") {
+//   let endpoint = "";
   
-  switch (status) {
-    case "pending":
-      endpoint = `/adminrole/students/pending/?class_name=${year}`;
-      break;
-    case "verified":
-      endpoint = `/adminrole/students/verified/?class_name=${year}`;
-      break;
-    case "rejected":
-      endpoint = `/adminrole/students/rejected/?class_name=${year}`;
-      break;
-  }
+//   switch (status) {
+//     case "pending":
+//       endpoint = `/adminrole/students/pending/?class_name=${year}`;
+//       break;
+//     case "verified":
+//       endpoint = `/adminrole/students/verified/?class_name=${year}`;
+//       break;
+//     case "rejected":
+//       endpoint = `/adminrole/students/rejected/?class_name=${year}`;
+//       break;
+//   }
   
+//   try {
+//     const response = await api.get(endpoint);
+//     return response.data.data;
+//   } catch (error) {
+//     throw new Error(`Failed to fetch ${status} students`);
+//   }
+// }
+export async function fetchStudentsByYear(year: string) {
   try {
+    let endpoint = "";
+    endpoint = `/adminrole/students/year/?class_name=${year}`;
+    console.log("yes baby");
     const response = await api.get(endpoint);
     return response.data.data;
   } catch (error) {
-    throw new Error(`Failed to fetch ${status} students`);
+    throw new Error(`Failed to fetch students`);
   }
 }
+
 
 export async function fetchStudentDetails(rollNo: string) {
   try {
@@ -36,7 +48,6 @@ export async function updateStudentStatus(
   rollNo: string,
   verified: boolean,
   currentStatus: boolean | null,
-  reason?: string,
 ) {
   let endpoint = "";
   
@@ -54,7 +65,6 @@ export async function updateStudentStatus(
     const response = await api.post(endpoint, {
       roll_no: rollNo,
       verified,
-      reason,
     });
     return response.data;
   } catch (error) {

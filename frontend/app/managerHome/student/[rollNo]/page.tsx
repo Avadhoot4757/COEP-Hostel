@@ -17,6 +17,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { FileText, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
+import { fetchStudentDetails, updateStudentStatus } from "@/lib/api-utils"
 
 interface Student {
   roll_no: string
@@ -77,129 +78,59 @@ export default function StudentDetailPage() {
   const [rejectReason, setRejectReason] = useState<string>("")
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [openDialog, setOpenDialog] = useState<boolean>(false)
-  const [action, setAction] = useState<"verify" | "reject">("verify")
+  const [action, setAction] = useState<"verify" | "reject" | null>(null)
 
   const rollNo = params.rollNo as string
 
   useEffect(() => {
-    fetchStudentDetails()
+    fetchstddata();
   }, [rollNo])
 
-  const fetchStudentDetails = async () => {
+  const fetchstddata = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`/adminrole/students/${rollNo}/`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch student details")
-      }
+      const data = await fetchStudentDetails(rollNo);
+      console.log(data);
+       setStudent(data)
+     } catch (error) {
+       console.error("Error fetching student details:", error)
+       toast({
+         title: "Error",
+         description: "Failed to load student details. Please try again.",
+         variant: "destructive",
+       })
+     } finally {
+       setLoading(false)
+     }
+   }
+   const handleConfirmAction = async () => {
+    if (!student || !action) return
 
-      const data = await response.json()
-      setStudent(data)
-    } catch (error) {
-      console.error("Error fetching student details:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load student details. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleVerifyStudent = async () => {
     setIsSubmitting(true)
+
+    const verified = action === "verify";
+
     try {
-      let endpoint = ""
-
-      if (student?.verified === null) {
-        endpoint = "/adminrole/students/pending/"
-      } else if (student?.verified === false) {
-        endpoint = "/adminrole/students/rejected/"
-      } else {
-        throw new Error("Student is already verified")
-      }
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          roll_no: rollNo,
-          verified: true,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to verify student")
-      }
+      const updatedStudent = await updateStudentStatus(
+        rollNo,
+        verified,
+        student.verified
+      )
 
       toast({
         title: "Success",
-        description: "Student has been verified successfully.",
-        variant: "default",
+        description: `Student has been ${verified ? "verified" : "rejected"} successfully.`,
+        variant: "success",
       })
-
-      // Refresh student data
-      fetchStudentDetails()
+      
+      fetchstddata();
       setOpenDialog(false)
-    } catch (error) {
-      console.error("Error verifying student:", error)
+      
+    } catch (error: any) {
+      console.error(error)
       toast({
         title: "Error",
-        description: "Failed to verify student. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleRejectStudent = async () => {
-    setIsSubmitting(true)
-    try {
-      let endpoint = ""
-
-      if (student?.verified === null) {
-        endpoint = "/adminrole/students/pending/"
-      } else if (student?.verified === true) {
-        endpoint = "/adminrole/students/verified/"
-      } else {
-        throw new Error("Student is already rejected")
-      }
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          roll_no: rollNo,
-          verified: false,
-          // Note: The backend would need to be updated to handle rejection reasons
-          reason: rejectReason,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to reject student")
-      }
-
-      toast({
-        title: "Success",
-        description: "Student has been rejected successfully.",
-        variant: "default",
-      })
-
-      // Refresh student data
-      fetchStudentDetails()
-      setOpenDialog(false)
-    } catch (error) {
-      console.error("Error rejecting student:", error)
-      toast({
-        title: "Error",
-        description: "Failed to reject student. Please try again.",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -210,14 +141,6 @@ export default function StudentDetailPage() {
   const handleActionClick = (actionType: "verify" | "reject") => {
     setAction(actionType)
     setOpenDialog(true)
-  }
-
-  const handleConfirmAction = () => {
-    if (action === "verify") {
-      handleVerifyStudent()
-    } else {
-      handleRejectStudent()
-    }
   }
 
   const getStatusBadge = (status: boolean | null) => {
@@ -275,7 +198,7 @@ export default function StudentDetailPage() {
         <AlertTriangle className="h-12 w-12 text-yellow-500 mb-4" />
         <h2 className="text-2xl font-bold mb-2">Student Not Found</h2>
         <p className="text-gray-500 mb-6">The student with roll number {rollNo} could not be found.</p>
-        <Button onClick={() => router.push("/manager")}>Back to Student List</Button>
+        <Button onClick={() => router.push("/managerHome")}>Back to Student List</Button>
       </div>
     )
   }
@@ -284,7 +207,7 @@ export default function StudentDetailPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={() => router.push("/manager")}>
+          <Button variant="outline" onClick={() => router.push("/managerHome")}>
             Back to List
           </Button>
           <h1 className="text-2xl font-bold">Student Details</h1>
@@ -330,7 +253,7 @@ export default function StudentDetailPage() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-500">Year & Branch</p>
               <p>
-                {getYearLabel(student.class_name)} - {student.branch.name}
+                {getYearLabel(student.class_name)} - {student.branch?.name}
               </p>
             </div>
 
@@ -501,7 +424,7 @@ export default function StudentDetailPage() {
             </Tabs>
           </CardContent>
           <CardFooter className="flex justify-between border-t pt-6">
-            <Button variant="outline" onClick={() => router.push("/manager")}>
+            <Button variant="outline" onClick={() => router.push("/managerHome")}>
               Back to List
             </Button>
             <div className="space-x-2">
@@ -532,9 +455,7 @@ export default function StudentDetailPage() {
           <DialogHeader>
             <DialogTitle>{action === "verify" ? "Verify Student" : "Reject Student"}</DialogTitle>
             <DialogDescription>
-              {action === "verify"
-                ? "Are you sure you want to verify this student? This will approve their hostel application."
-                : "Please provide a reason for rejecting this student's application."}
+              {`Are you sure you want to ${action} the student?`}
             </DialogDescription>
           </DialogHeader>
 
