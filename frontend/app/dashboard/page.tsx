@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, Bell, Home } from "lucide-react";
+import { Clock, Users, Bell, Home, Loader2 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,24 +53,59 @@ interface InvitesResponse {
   received_invites: Invite[];
 }
 
+interface Block {
+  id: number;
+  name: string;
+  per_room_capacity: number;
+}
+
 export default function DashboardPage() {
   const [roomStatus, setRoomStatus] = useState<RoomStatus | null>(null);
   const [invites, setInvites] = useState<InvitesResponse>({
     sent_invites: [],
     received_invites: [],
   });
+  const [maxRoommates, setMaxRoommates] = useState<number | null>(null);
   const [loadingRoom, setLoadingRoom] = useState(true);
   const [loadingInvites, setLoadingInvites] = useState(true);
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const [loadingBlocks, setLoadingBlocks] = useState(true);
+  const { user, isAuthenticated, loading: authLoading, checkAuth } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    const verifyAuth = async () => {
+      const isValid = await checkAuth();
+      if (!isValid) {
+        router.push("/?auth=login");
+      }
+    };
+
     if (!authLoading && !isAuthenticated) {
-      router.push("/?auth=login");
+      verifyAuth();
     }
-  }, [authLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, checkAuth, router]);
 
   useEffect(() => {
+    const fetchBlockCapacity = async () => {
+      try {
+        setLoadingBlocks(true);
+        const response = await api.get("/allot/rooms/");
+        const blocks: Block[] = response.data;
+        // Set maxRoommates to the maximum per_room_capacity among all blocks
+        if (blocks.length > 0) {
+          const maxCapacity = Math.max(...blocks.map(block => block.per_room_capacity));
+          setMaxRoommates(maxCapacity);
+        } else {
+          setMaxRoommates(4); // Fallback to 4 if no blocks are returned
+        }
+      } catch (error) {
+        console.error("Error fetching block capacity:", error);
+        setMaxRoommates(4); // Fallback to 4 if fetch fails
+      } finally {
+        setLoadingBlocks(false);
+      }
+    };
+
     const fetchRoomStatus = async () => {
       try {
         setLoadingRoom(true);
@@ -101,20 +136,16 @@ export default function DashboardPage() {
     };
 
     if (isAuthenticated) {
+      fetchBlockCapacity();
       fetchRoomStatus();
       fetchInvites();
     }
   }, [isAuthenticated]);
 
-  const maxRoommates = 4;
   const currentRoommates = roomStatus?.members.length || 0;
-  const roommatesNeeded = maxRoommates - currentRoommates;
-  const pendingReceivedInvitesCount = invites.received_invites.filter(
-    (invite) => invite.status === "pending"
-  ).length;
-  const pendingSentInvitesCount = invites.sent_invites.filter(
-    (invite) => invite.status === "pending"
-  ).length;
+  const roommatesNeeded = maxRoommates ? maxRoommates - currentRoommates : 0;
+  const pendingReceivedInvitesCount = invites.received_invites.length;
+  const pendingSentInvitesCount = invites.sent_invites.length;
 
   const getMemberDisplay = (member: Member) => {
     const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
@@ -138,8 +169,19 @@ export default function DashboardPage() {
     }
   };
 
-  if (authLoading || loadingRoom || loadingInvites) {
-    return <div>Loading...</div>;
+  if (authLoading || loadingRoom || loadingInvites || loadingBlocks) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4 p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || maxRoommates === null) {
+    return null; // Prevent flicker while redirecting or if capacity is not loaded
   }
 
   return (

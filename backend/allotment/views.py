@@ -68,7 +68,6 @@ class RoomGroupStatusView(APIView):
             status=status.HTTP_200_OK
         )
 
-
 class AvailableStudentsView(APIView):
     """Get available students & send room invites"""
     permission_classes = [IsAuthenticated, IsStudent]
@@ -109,6 +108,7 @@ class AvailableStudentsView(APIView):
         receiver_id = request.data.get("receiver_id")
         try:
             receiver = User.objects.get(id=receiver_id)
+            student_data = StudentDataEntry.objects.get(user=request.user)
             # Prevent inviting self
             if receiver == request.user:
                 return Response(
@@ -127,17 +127,39 @@ class AvailableStudentsView(APIView):
                     {"error": "User is already in a room"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            # Check if sender's group is full
+            # Check if sender's group is full based on block capacity
             sender_groups = request.user.room_groups.all()
-            if sender_groups.exists() and sender_groups.first().members.count() >= 4:
+            if sender_groups.exists():
+                group = sender_groups.first()
+                # Find the block matching the group's gender and class_name
+                block = Block.objects.filter(
+                    floors__gender=student_data.gender,
+                    floors__class_name=student_data.class_name
+                ).first()
+                if not block:
+                    return Response(
+                        {"error": "No suitable block found for your group"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                if group.members.count() >= block.per_room_capacity:
+                    return Response(
+                        {"error": f"Your room group is already full (capacity: {block.per_room_capacity})"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            # Check for reverse invite
+            reverse_invite_exists = RoomInvite.objects.filter(
+                sender=receiver, receiver=request.user
+            ).exists()
+
+            if reverse_invite_exists:
                 return Response(
-                    {"error": "Your room group is already full"},
+                    {"error": "A pending invite already exists from receiver to sender."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
             # Check for existing invite
             invite, created = RoomInvite.objects.get_or_create(
-                sender=request.user, receiver=receiver, status="pending"
+                sender=request.user, receiver=receiver
             )
 
             if not created:
@@ -153,15 +175,19 @@ class AvailableStudentsView(APIView):
 
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
-
+        except StudentDataEntry.DoesNotExist:
+            return Response(
+                {"error": "Student data not found for this user"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 class RoomInvitesView(APIView):
     """Get sent and received invites & manage them"""
     permission_classes = [IsAuthenticated, IsStudent]
 
     def get(self, request):
-        sent_invites = RoomInvite.objects.filter(sender=request.user, status="pending")
-        received_invites = RoomInvite.objects.filter(receiver=request.user, status="pending")
+        sent_invites = RoomInvite.objects.filter(sender=request.user)
+        received_invites = RoomInvite.objects.filter(receiver=request.user)
 
         sent_serializer = RoomInviteSerializer(sent_invites, many=True)
         received_serializer = RoomInviteSerializer(received_invites, many=True)
@@ -183,26 +209,37 @@ class RoomInvitesView(APIView):
                 return Response({"message": "Invite cancelled"}, status=status.HTTP_200_OK)
 
             elif action == "reject" and invite.receiver == request.user:
-                invite.status = "rejected"
-                invite.save()
+                invite.delete()
                 return Response({"message": "Invite rejected"}, status=status.HTTP_200_OK)
 
             elif action == "accept" and invite.receiver == request.user:
-                # Prevent accepting if already in a group
                 if request.user.room_groups.exists():
                     return Response(
                         {"error": "You are already in a room group"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
-                invite.status = "accepted"
-                invite.save()
-
-                # Add receiver to sender's room (or create a new one)
                 sender_rooms = invite.sender.room_groups.all()
                 sender_data = StudentDataEntry.objects.get(user=invite.sender)
+                # Find the block matching the sender's gender and class_name
+                block = Block.objects.filter(
+                    floors__gender=sender_data.gender,
+                    floors__class_name=sender_data.class_name
+                ).first()
+                if not block:
+                    return Response(
+                        {"error": "No suitable block found for the group"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
                 if sender_rooms.exists():
                     room = sender_rooms.first()
+                    # Check if group is full
+                    if room.members.count() >= block.per_room_capacity:
+                        return Response(
+                            {"error": f"Room group is already full (capacity: {block.per_room_capacity})"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
                 else:
                     # Ensure unique room name
                     base_name = f"Room-{invite.sender.username}"
@@ -210,7 +247,11 @@ class RoomInvitesView(APIView):
                     while RoomGroup.objects.filter(name=base_name).exists():
                         base_name = f"Room-{invite.sender.username}-{suffix}"
                         suffix += 1
-                    room = RoomGroup.objects.create(name=base_name, gender=sender_data.gender, class_name=sender_data.class_name)
+                    room = RoomGroup.objects.create(
+                        name=base_name,
+                        gender=sender_data.gender,
+                        class_name=sender_data.class_name
+                    )
                     room.members.add(invite.sender)
 
                 # Prevent duplicate membership
@@ -219,16 +260,18 @@ class RoomInvitesView(APIView):
 
                 # Delete other pending received invites for the user
                 RoomInvite.objects.filter(
-                    receiver=invite.receiver, status="pending"
+                    receiver=invite.receiver
                 ).exclude(id=invite.id).delete()
 
-                # Check if group is full (assume max 4 members)
-                if room.members.count() >= 4:
+                # Check if group is full
+                if room.members.count() >= block.per_room_capacity:
                     # Delete all pending sent invites from group members
                     group_member_ids = room.members.values_list("id", flat=True)
                     RoomInvite.objects.filter(
-                        sender__id__in=group_member_ids, status="pending"
+                        sender__id__in=group_member_ids
                     ).delete()
+
+                invite.delete()
 
                 return Response({"message": "Invite accepted, added to room"}, status=status.HTTP_200_OK)
 
@@ -236,20 +279,27 @@ class RoomInvitesView(APIView):
 
         except RoomInvite.DoesNotExist:
             return Response({"error": "Invite not found"}, status=status.HTTP_404_NOT_FOUND)
-
+        except StudentDataEntry.DoesNotExist:
+            return Response(
+                {"error": "Student data not found for sender"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 class RoomListView(APIView):
     permission_classes = [IsAuthenticated, IsStudent]
 
     def get(self, request):
         try:
-            # Get user's year and gender from StudentDataEntry
+            # Get user's class_name and gender from StudentDataEntry
             student_data = StudentDataEntry.objects.get(user=request.user)
-            year = student_data.class_name
+            class_name = student_data.class_name
             gender = student_data.gender
 
-            # Fetch blocks matching user's year and gender
-            blocks = Block.objects.filter(class_name=year, gender=gender).prefetch_related('floors__rooms')
+            # Fetch blocks with floors matching user's class_name and gender
+            blocks = Block.objects.filter(
+                floors__class_name=class_name,
+                floors__gender=gender
+            ).distinct().prefetch_related('floors__rooms')
             serializer = BlockSerializer(blocks, many=True)
             
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -264,7 +314,6 @@ class RoomListView(APIView):
                 {"error": "An error occurred while fetching rooms"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
 
 class PreferenceView(APIView):
     permission_classes = [IsAuthenticated]
@@ -283,25 +332,37 @@ class PreferenceView(APIView):
     def post(self, request):
         try:
             group = request.user.room_groups.get()
-            # Check if group has exactly 4 members
-            if group.members.count() != 4:
+            student_data = StudentDataEntry.objects.get(user=request.user)
+            # Find the block matching the group's gender and class_name
+            block = Block.objects.filter(
+                floors__gender=student_data.gender,
+                floors__class_name=student_data.class_name
+            ).first()
+            if not block:
                 return Response(
-                    {"error": "Room group must have exactly 4 members to save preferences"},
+                    {"error": "No suitable block found for your group"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Check if group has the correct number of members for the block's capacity
+            if group.members.count() != block.per_room_capacity:
+                return Response(
+                    {"error": f"Room group must have exactly {block.per_room_capacity} members to save preferences"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             serializer = PreferenceSubmitSerializer(data=request.data, context={'request': request})
             
             if serializer.is_valid():
                 preferences = serializer.validated_data['preferences']
-                student_data = StudentDataEntry.objects.get(user=request.user)
                 
                 Preference.objects.filter(room_group=group).delete()
                 
                 for rank, room_id in enumerate(preferences, 1):
+                    # Ensure room belongs to a block with matching capacity
                     room = Room.objects.get(
                         room_id=room_id,
-                        floor__block__year=student_data.year,
-                        floor__block__gender=student_data.gender
+                        floor__gender=student_data.gender,
+                        floor__class_name=student_data.class_name,
+                        floor__block__per_room_capacity=block.per_room_capacity
                     )
                     Preference.objects.create(
                         room_group=group,
@@ -318,6 +379,6 @@ class PreferenceView(APIView):
         except StudentDataEntry.DoesNotExist:
             return Response({"error": "Complete your student profile"}, status=status.HTTP_400_BAD_REQUEST)
         except Room.DoesNotExist:
-            return Response({"error": "One or more rooms are invalid"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "One or more rooms are invalid or do not match the block capacity"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

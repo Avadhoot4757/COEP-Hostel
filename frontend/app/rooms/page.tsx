@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { AlertCircle, Image as ImageIcon } from "lucide-react";
+import { AlertCircle, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,12 +14,13 @@ import { CSS } from "@dnd-kit/utilities";
 interface Room {
   room_id: string;
   is_occupied: boolean;
-  capacity: number;
 }
 
 interface Floor {
   number: number;
   name: string;
+  gender: string;
+  class_name: string;
   rooms: Room[];
   hostel_map_image?: string | null;
 }
@@ -27,8 +28,7 @@ interface Floor {
 interface Block {
   id: number;
   name: string;
-  gender: string;
-  year: string;
+  per_room_capacity: number;
   floors: Floor[];
 }
 
@@ -66,7 +66,7 @@ const SortableItem = ({ id, children }: { id: string; children: React.ReactNode 
 };
 
 export default function RoomsPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading, checkAuth } = useAuth();
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [currentBlockId, setCurrentBlockId] = useState<number | null>(null);
   const [currentFloor, setCurrentFloor] = useState<number | null>(null);
@@ -78,14 +78,17 @@ export default function RoomsPage() {
 
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const allNonOccupiedRooms = blocks
+  const groupMemberCount = roomStatus?.members.length || 0;
+  // Filter blocks with per_room_capacity matching the group member count
+  const validBlocks = blocks.filter(block => block.per_room_capacity === groupMemberCount);
+  const allNonOccupiedRooms = validBlocks
     .flatMap(block => block.floors)
     .flatMap(floor => floor.rooms)
     .filter(room => !room.is_occupied)
     .map(room => room.room_id);
 
   const isPreferencesComplete = preferences.length === allNonOccupiedRooms.length;
-  const isGroupComplete = (roomStatus?.members.length || 0) === 4;
+  const isGroupComplete = groupMemberCount > 0 && validBlocks.length > 0;
 
   const getMemberInitials = (member: Member) => {
     const fullName = [member.first_name, member.last_name].filter(Boolean).join(" ");
@@ -98,68 +101,77 @@ export default function RoomsPage() {
   };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [roomsResponse, preferencesResponse, roomStatusResponse] = await Promise.all([
-          api.get("/allot/rooms/"),
-          api.get("/allot/preferences/"),
-          api.get("/allot/room-status/"),
-        ]);
-        setBlocks(roomsResponse.data);
-        setPreferences(preferencesResponse.data.map((p: Preference) => p.room_id));
-        setRoomStatus(roomStatusResponse.data[0] || null);
-
-        if (roomsResponse.data.length > 0) {
-          setCurrentBlockId(roomsResponse.data[0].id);
-          if (roomsResponse.data[0].floors.length > 0) {
-            setCurrentFloor(roomsResponse.data[0].floors[0].number);
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Failed to load rooms, preferences, or room status. Please try again.");
-      } finally {
-        setLoading(false);
+    const verifyAuth = async () => {
+      const isValid = await checkAuth();
+      if (!isValid) {
+        window.location.href = "/?auth=login";
       }
     };
 
-    fetchData();
-  }, [isAuthenticated]);
+    if (!authLoading && !isAuthenticated) {
+      verifyAuth();
+    } else if (isAuthenticated) {
+      const fetchData = async () => {
+        try {
+          setLoading(true);
+          const [roomsResponse, preferencesResponse, roomStatusResponse] = await Promise.all([
+            api.get("/allot/rooms/"),
+            api.get("/allot/preferences/"),
+            api.get("/allot/room-status/"),
+          ]);
+          setBlocks(roomsResponse.data);
+          setPreferences(preferencesResponse.data.map((p: Preference) => p.room_id));
+          setRoomStatus(roomStatusResponse.data[0] || null);
+
+          if (roomsResponse.data.length > 0) {
+            setCurrentBlockId(roomsResponse.data[0].id);
+            if (roomsResponse.data[0].floors.length > 0) {
+              setCurrentFloor(roomsResponse.data[0].floors[0].number);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching data:", err);
+          setError("Failed to load rooms, preferences, or room status. Please try again.");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchData();
+    }
+  }, [authLoading, isAuthenticated, checkAuth]);
 
   const currentBlock = blocks.find(block => block.id === currentBlockId);
   const currentFloorData = currentBlock?.floors.find(floor => floor.number === currentFloor);
 
   const handleRoomClick = (roomId: string) => {
-    if (!isGroupComplete) return; // Disable room selection if group is not full
+    if (!isGroupComplete) return;
     if (!preferences.includes(roomId)) {
       setPreferences([...preferences, roomId]);
     }
   };
 
   const removePreference = (roomId: string) => {
-    if (!isGroupComplete) return; // Disable removing preferences if group is not full
+    if (!isGroupComplete) return;
     setPreferences(preferences.filter(id => id !== roomId));
   };
 
   const fillRandomly = () => {
-    if (!isGroupComplete) return; // Disable fill randomly if group is not full
+    if (!isGroupComplete) return;
     const remainingRooms = allNonOccupiedRooms.filter(roomId => !preferences.includes(roomId));
     const shuffledRemaining = [...remainingRooms].sort(() => Math.random() - 0.5);
     setPreferences([...preferences, ...shuffledRemaining]);
   };
 
   const clearPreferences = () => {
-    if (!isGroupComplete) return; // Disable clear preferences if group is not full
+    if (!isGroupComplete) return;
     setPreferences([]);
     setSaveError(null);
   };
 
   const savePreferences = async () => {
     if (!isGroupComplete) {
-      setSaveError("Complete your group (4 members) before saving.");
+      setSaveError(`Complete your group (${groupMemberCount}/${validBlocks[0]?.per_room_capacity} members) before saving.`);
       return;
     }
     if (!isPreferencesComplete) {
@@ -178,7 +190,7 @@ export default function RoomsPage() {
   };
 
   const handleDragEnd = (event: any) => {
-    if (!isGroupComplete) return; // Disable drag-and-drop if group is not full
+    if (!isGroupComplete) return;
     const { active, over } = event;
 
     if (active.id !== over.id) {
@@ -192,12 +204,23 @@ export default function RoomsPage() {
     }
   };
 
-  if (loading) {
-    return <div className="p-8">Loading rooms...</div>;
+  if (authLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4 p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg text-muted-foreground">Loading room preferences...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     return <div className="p-8 text-red-600">{error}</div>;
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
@@ -210,7 +233,7 @@ export default function RoomsPage() {
           <div>
             <h2 className="font-semibold text-red-900">Group Incomplete</h2>
             <p className="text-sm text-red-700">
-              You need to form a complete group of 4 students before you can select room preferences.
+              You need to form a complete group of {validBlocks[0]?.per_room_capacity || "unknown"} students before you can select room preferences.
             </p>
           </div>
         </div>
@@ -224,7 +247,7 @@ export default function RoomsPage() {
           </p>
 
           <div className="space-y-6">
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               {blocks.map(block => (
                 <Button
                   key={block.id}
@@ -234,8 +257,10 @@ export default function RoomsPage() {
                     setCurrentBlockId(block.id);
                     setCurrentFloor(block.floors[0]?.number || null);
                   }}
+                  disabled={block.per_room_capacity !== groupMemberCount}
+                  className={block.per_room_capacity !== groupMemberCount ? "opacity-50" : ""}
                 >
-                  {block.name}
+                  {block.name} ({block.per_room_capacity} per room)
                 </Button>
               ))}
             </div>
@@ -301,7 +326,7 @@ export default function RoomsPage() {
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Your Group</h2>
             <div className="flex gap-2 mb-4">
-              {Array(4).fill(0).map((_, index) => {
+              {Array(validBlocks[0]?.per_room_capacity || 4).fill(0).map((_, index) => {
                 const member = roomStatus?.members[index];
                 return (
                   <div

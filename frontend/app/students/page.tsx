@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Check, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import {
@@ -38,29 +38,36 @@ export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [branchFilter, setBranchFilter] = useState("all-branches");
-  const { isAuthenticated, loading } = useAuth();
+  const [loading, setLoading] = useState(true); // Added loading state
+  const { isAuthenticated, loading: authLoading, checkAuth } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push("/?auth=login");
-    }
-  }, [loading, isAuthenticated, router]);
-
-  useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        const response = await api.get("/allot/student-available/");
-        setStudents(response.data);
-      } catch (error) {
-        console.error("Error fetching students:", error);
+    const verifyAuth = async () => {
+      const isValid = await checkAuth();
+      if (!isValid) {
+        router.push("/?auth=login");
       }
     };
 
-    if (isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
+      verifyAuth();
+    } else if (isAuthenticated) {
+      const fetchStudents = async () => {
+        try {
+          setLoading(true);
+          const response = await api.get("/allot/student-available/");
+          setStudents(response.data);
+        } catch (error) {
+          console.error("Error fetching students:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
       fetchStudents();
     }
-  }, [isAuthenticated]);
+  }, [authLoading, isAuthenticated, checkAuth, router]);
 
   const handleInvite = async (receiverId: number) => {
     try {
@@ -92,8 +99,19 @@ export default function StudentsPage() {
     return matchesSearch && matchesBranch;
   });
 
-  if (loading) {
-    return <div>Loading...</div>;
+  if (authLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4 p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg text-muted-foreground">Loading student directory...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (

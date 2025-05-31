@@ -32,7 +32,7 @@ class RoomGroupSerializer(serializers.ModelSerializer):
 class AvailableStudentSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='data_entry.first_name')
     last_name = serializers.CharField(source='data_entry.last_name', allow_null=True)
-    branch = serializers.CharField(source='data_entry.branch')
+    branch = serializers.CharField(source='data_entry.branch.branch')
 
     class Meta:
         model = User
@@ -68,8 +68,6 @@ class RoomInviteSerializer(serializers.ModelSerializer):
             "receiver_first_name",
             "receiver_last_name",
             "receiver_branch",
-            "status",
-            "timestamp"
         ]
 
     def to_representation(self, instance):
@@ -87,7 +85,7 @@ class RoomInviteSerializer(serializers.ModelSerializer):
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
-        fields = ['room_id', 'is_occupied', 'capacity']
+        fields = ['room_id', 'is_occupied']
 
 class FloorSerializer(serializers.ModelSerializer):
     rooms = RoomSerializer(many=True, read_only=True)
@@ -96,14 +94,14 @@ class FloorSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Floor
-        fields = ['number', 'name', 'rooms', 'hostel_map_image']
+        fields = ['number', 'name', 'rooms', 'gender', 'class_name', 'hostel_map_image']
 
 class BlockSerializer(serializers.ModelSerializer):
     floors = FloorSerializer(many=True, read_only=True)
 
     class Meta:
         model = Block
-        fields = ['id', 'name', 'gender', 'class_name', 'floors']
+        fields = ['id', 'name',  'per_room_capacity', 'floors']
 
 class PreferenceSerializer(serializers.ModelSerializer):
     room_id = serializers.CharField(source='room.room_id')

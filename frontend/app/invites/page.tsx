@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, X } from "lucide-react";
+import { Check, X, Loader2 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
@@ -44,36 +44,39 @@ export default function InvitesPage() {
     received_invites: [],
   });
   const [loading, setLoading] = useState(true);
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, checkAuth } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push("/?auth=login");
-    }
-  }, [authLoading, isAuthenticated, router]);
-
-  useEffect(() => {
-    const fetchInvites = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get("/allot/invites/");
-        setInvites({
-          sent_invites: response.data.sent_invites || [],
-          received_invites: response.data.received_invites || [],
-        });
-      } catch (error) {
-        console.error("Error fetching invites:", error);
-        setInvites({ sent_invites: [], received_invites: [] });
-      } finally {
-        setLoading(false);
+    const verifyAuth = async () => {
+      const isValid = await checkAuth();
+      if (!isValid) {
+        router.push("/?auth=login");
       }
     };
 
-    if (isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
+      verifyAuth();
+    } else if (isAuthenticated) {
+      const fetchInvites = async () => {
+        try {
+          setLoading(true);
+          const response = await api.get("/allot/invites/");
+          setInvites({
+            sent_invites: response.data.sent_invites || [],
+            received_invites: response.data.received_invites || [],
+          });
+        } catch (error) {
+          console.error("Error fetching invites:", error);
+          setInvites({ sent_invites: [], received_invites: [] });
+        } finally {
+          setLoading(false);
+        }
+      };
+
       fetchInvites();
     }
-  }, [isAuthenticated]);
+  }, [authLoading, isAuthenticated, checkAuth, router]);
 
   const getMemberDisplay = (first_name: string, last_name: string | null) => {
     const fullName = [first_name, last_name].filter(Boolean).join(" ");
@@ -132,7 +135,18 @@ export default function InvitesPage() {
   };
 
   if (authLoading || loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4 p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg text-muted-foreground">Loading invites...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
   }
 
   return (
@@ -251,7 +265,7 @@ export default function InvitesPage() {
                         </div>
                       </div>
                     </div>
-                    {invite.status === "pending" && (
+                    {(
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="outline" size="sm">

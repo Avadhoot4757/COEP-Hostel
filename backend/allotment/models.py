@@ -6,17 +6,22 @@ User = get_user_model()
 class RoomInvite(models.Model):
     sender = models.ForeignKey(User, related_name="sent_invites", on_delete=models.CASCADE)
     receiver = models.ForeignKey(User, related_name="received_invites", on_delete=models.CASCADE)
-    status = models.CharField(
-        max_length=10,
-        choices=[("pending", "Pending"), ("accepted", "Accepted"), ("rejected", "Rejected")],
-        default="pending"
-    )
-    timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.sender} -> {self.receiver} ({self.status})"
+        return f"{self.sender} -> {self.receiver}"
 
 class Block(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    description = models.TextField(blank=True)
+    per_room_capacity = models.PositiveIntegerField(default=1)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        indexes = [models.Index(fields=['name'])]
+
+class Floor(models.Model):
     GENDER_CHOICES = (
         ('male', 'Male'),
         ('female', 'Female'),
@@ -28,22 +33,12 @@ class Block(models.Model):
         ('btech', 'Final Year'),
     )
 
-    name = models.CharField(max_length=50, unique=True)
-    gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
-    class_name = models.CharField(max_length=10, choices=CLASS_CHOICES, default='fy')
-    description = models.TextField(blank=True)
-
-    def __str__(self):
-        return f"{self.name} ({self.get_gender_display()}, {self.get_year_display()})"
-
-    class Meta:
-        indexes = [models.Index(fields=['gender', 'class_name'])]
-
-class Floor(models.Model):
     block = models.ForeignKey(Block, on_delete=models.CASCADE, related_name='floors')
     number = models.PositiveIntegerField()
     name = models.CharField(max_length=50, blank=True)
     hostel_map_image = models.ImageField(upload_to='hostel_maps/', blank=True, null=True)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, default='male')
+    class_name = models.CharField(max_length=10, choices=CLASS_CHOICES, default='fy')
 
     def __str__(self):
         return f"{self.name or f'Floor {self.number}'} - {self.block.name}"
@@ -51,12 +46,12 @@ class Floor(models.Model):
     class Meta:
         unique_together = ('block', 'number')
         ordering = ['number']
+        indexes = [models.Index(fields=['gender', 'class_name'])]
 
 class Room(models.Model):
     floor = models.ForeignKey(Floor, on_delete=models.CASCADE, related_name='rooms')
     room_id = models.CharField(max_length=10)
     is_occupied = models.BooleanField(default=False)
-    capacity = models.PositiveIntegerField(default=1)
 
     def __str__(self):
         return f"Room {self.room_id} ({self.floor})"
