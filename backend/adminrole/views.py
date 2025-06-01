@@ -8,6 +8,9 @@ from rest_framework.permissions import IsAuthenticated
 from .models  import *
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
+from .models import  SelectDates, SeatMatrix 
+from authentication.models import Branch,Caste,StudentDataEntry
+
 
 User = get_user_model()
 
@@ -522,6 +525,87 @@ class ManagersView(APIView):
                 {"error": "Manager not found."},
                 status=status.HTTP_404_NOT_FOUND
             )
+        
+
+class AllotBranchRanksView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
+    def post(self, request):
+        """Assign branch ranks to students of the specified year based on CGPA, then select students."""
+        try:
+            # Step 1: Extract the year from the request data
+            year = request.data.get('year')
+            gender = request.data.get('gender', 'male')  # Default to male if not specified
+            
+            # Validate the year against CLASS_CHOICES
+            valid_years = [choice[0] for choice in StudentDataEntry.CLASS_CHOICES]
+            if not year or year not in valid_years:
+                return Response(
+                    {"error": f"Invalid year. Must be one of: {', '.join(valid_years)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validate the gender
+            valid_genders = [choice[0] for choice in StudentDataEntry.GENDER_CHOICES]
+            if gender not in valid_genders:
+                return Response(
+                    {"error": f"Invalid gender. Must be one of: {', '.join(valid_genders)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Step 2: Filter students with the specified class_name and gender
+            students = StudentDataEntry.objects.filter(class_name=year, gender=gender).select_related('branch')
+            print(students.query)  # Debug: Print the SQL query
+
+            if not students.exists():
+                return Response(
+                    {"message": f"No {year} {gender} students found."},
+                    status=status.HTTP_200_OK
+                )
+
+            # Step 3: Group students by branch
+            branch_groups = {}
+            for student in students:
+                branch_id = student.branch_id  # Use the foreign key value (e.g., an integer)
+                if branch_id not in branch_groups:
+                    branch_groups[branch_id] = []
+                branch_groups[branch_id].append(student)
+
+            # Step 4: Assign branch ranks within each branch
+            total_updated = 0
+            for branch_id, students in branch_groups.items():
+                # Sort students by CGPA in descending order (higher CGPA gets lower rank number)
+                sorted_students = sorted(students, key=lambda s: (s.cgpa if s.cgpa is not None else 0), reverse=True)
+
+                # Assign ranks
+                for rank, student in enumerate(sorted_students, start=1):
+                    if student.branch_rank != rank:
+                        student.branch_rank = rank
+                        student.save(update_fields=['branch_rank'])
+                        total_updated += 1
+
+            # Step 5: After allotting ranks, call SelectStudentsView to select students
+            select_view = SelectStudentsView()
+            select_response = select_view.post(request)
+
+            if select_response.status_code != 200:
+                return select_response  # Return any error from SelectStudentsView
+
+            return Response(
+                {
+                    "message": f"Successfully updated branch ranks for {total_updated} {year} {gender} students and selected students based on seat matrix.",
+                    "selection_details": select_response.data
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            print(f"Error in AllotBranchRanksView: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class StudentsView(APIView):
     permission_classes = [IsAuthenticated, IsRector]
@@ -531,3 +615,267 @@ class StudentsView(APIView):
         students = User.objects.filter(user_type="student")
         serializer = UserSerializer(students, many=True)
         return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+
+
+from django.db.models import Q
+
+class GetStudentsView(APIView):
+    print("GetStudentsView initialized")
+    permission_classes = [IsAuthenticated, IsManager]
+    print("GetStudentsView permission classes set")
+    def get(self, request):
+        """Fetch verified students for a given year, gender, and category."""
+        try:
+            year = request.query_params.get('year')
+            gender = request.query_params.get('gender', 'male')
+            category = request.query_params.get('category', 'all')
+
+            # Validate the year
+            valid_years = [choice[0] for choice in StudentDataEntry.CLASS_CHOICES]
+            if not year or year not in valid_years:
+                return Response(
+                    {"error": f"Invalid year. Must be one of: {', '.join(valid_years)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validate the gender
+            valid_genders = [choice[0] for choice in StudentDataEntry.GENDER_CHOICES]
+            if gender not in valid_genders:
+                return Response(
+                    {"error": f"Invalid gender. Must be one of: {', '.join(valid_genders)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Build the query
+            query = Q(class_name=year, gender=gender, verified=True)
+            if category != 'all':
+                query &= Q(caste__caste__iexact=category)
+
+            students = StudentDataEntry.objects.filter(query).select_related('branch', 'caste', 'admission_category')
+
+            student_data = [
+                {
+                    "roll_no": student.roll_no,
+                    "first_name": student.first_name,
+                    "middle_name": student.middle_name,
+                    "last_name": student.last_name,
+                    "class_name": student.class_name,
+                    "branch": {"name": student.branch.branch},
+                    "verified": student.verified,
+                    "selected": student.selected,
+                    "last_selection_year": student.last_selection_year,
+                    "caste": {"name": student.caste.caste},
+                    "admission_category": {"name": student.admission_category.admission_category},
+                }
+                for student in students
+            ]
+
+            return Response({"students": student_data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"Error in GetStudentsView: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class SelectStudentView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
+    def post(self, request):
+        """Manually select a student."""
+        try:
+            roll_no = request.data.get('roll_no')
+            if not roll_no:
+                return Response(
+                    {"error": "Roll number is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            student = StudentDataEntry.objects.get(roll_no=roll_no)
+            student.selected = True
+            student.save(update_fields=['selected'])
+            return Response(
+                {"message": f"Student {roll_no} selected successfully."},
+                status=status.HTTP_200_OK
+            )
+
+        except StudentDataEntry.DoesNotExist:
+            return Response(
+                {"error": f"Student with roll number {roll_no} not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error in SelectStudentView: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class RemoveStudentView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
+    def post(self, request):
+        """Manually remove a student from selection."""
+        try:
+            roll_no = request.data.get('roll_no')
+            if not roll_no:
+                return Response(
+                    {"error": "Roll number is required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            student = StudentDataEntry.objects.get(roll_no=roll_no)
+            student.selected = False
+            student.save(update_fields=['selected'])
+            return Response(
+                {"message": f"Student {roll_no} removed from selection successfully."},
+                status=status.HTTP_200_OK
+            )
+
+        except StudentDataEntry.DoesNotExist:
+            return Response(
+                {"error": f"Student with roll number {roll_no} not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error in RemoveStudentView: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class SelectStudentsView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
+    def post(self, request):
+        """Select students for hostel allocation based on seat matrix."""
+        try:
+            # Step 1: Extract year and gender from the request
+            year = request.data.get('year')
+            gender = request.data.get('gender', 'male')  # Default to male if not specified
+
+            # Validate the year
+            valid_years = [choice[0] for choice in StudentDataEntry.CLASS_CHOICES]
+            if not year or year not in valid_years:
+                return Response(
+                    {"error": f"Invalid year. Must be one of: {', '.join(valid_years)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validate the gender
+            valid_genders = [choice[0] for choice in StudentDataEntry.GENDER_CHOICES]
+            if gender not in valid_genders:
+                return Response(
+                    {"error": f"Invalid gender. Must be one of: {', '.join(valid_genders)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Step 2: Fetch the seat matrix for the given year and gender
+            try:
+                seat_matrix = SeatMatrix.objects.get(year=year, gender=gender)
+            except SeatMatrix.DoesNotExist:
+                return Response(
+                    {"error": f"No seat matrix found for year {year} and gender {gender}"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Step 3: Reset the selected flag for students of this year and gender
+            StudentDataEntry.objects.filter(class_name=year, gender=gender).update(
+                selected=False,
+                last_selection_year=year
+            )
+
+            # Step 4: Fetch verified students for the given year and gender
+            students = StudentDataEntry.objects.filter(
+                class_name=year,
+                gender=gender,
+                verified=True
+            ).select_related('branch', 'caste').order_by('branch_rank')
+
+            if not students.exists():
+                return Response(
+                    {"message": f"No verified {year} {gender} students found to select."},
+                    status=status.HTTP_200_OK
+                )
+
+            # Step 5: Parse the seat matrix
+            branch_seats = seat_matrix.branch_seats  # JSON field with branch-wise seats
+            # Example structure of branch_seats:
+            # {
+            #   "Computer Science": {"Open": 10, "SC": 3, "ST": 2, "OBC": 5, ...},
+            #   "Mechanical": {"Open": 8, "SC": 2, "ST": 1, "OBC": 4, ...},
+            #   ...
+            # }
+
+            # Step 6: Group students by branch
+            branch_groups = {}
+            for student in students:
+                branch_name = student.branch.branch  # e.g., "Computer Science"
+                if branch_name not in branch_groups:
+                    branch_groups[branch_name] = []
+                branch_groups[branch_name].append(student)
+
+            # Step 7: Allocate seats for each branch
+            total_selected = 0
+            for branch_name, branch_students in branch_groups.items():
+                if branch_name not in branch_seats:
+                    continue  # Skip if the branch isn't in the seat matrix
+
+                branch_seat_info = branch_seats[branch_name]
+                open_seats = branch_seat_info.get("Open", 0)
+
+                # Step 7.1: Allocate Open seats (any category can take them)
+                remaining_students = branch_students.copy()
+                open_selected = []
+                for student in remaining_students:
+                    if open_seats <= 0:
+                        break
+                    open_selected.append(student)
+                    open_seats -= 1
+                    total_selected += 1
+
+                # Remove students who got Open seats from remaining_students
+                remaining_students = [s for s in remaining_students if s not in open_selected]
+
+                # Step 7.2: Allocate reserved seats (category-specific)
+                reserved_categories = {k: v for k, v in branch_seat_info.items() if k != "Open"}
+                for category, seats in reserved_categories.items():
+                    # Find students of this category
+                    category_students = [
+                        s for s in remaining_students
+                        if s.caste.caste.upper() == category.upper()
+                    ]
+                    # Sort by branch_rank to prioritize higher-ranked students
+                    category_students.sort(key=lambda s: s.branch_rank or float('inf'))
+
+                    # Allocate seats
+                    for student in category_students:
+                        if seats <= 0:
+                            break
+                        open_selected.append(student)
+                        seats -= 1
+                        total_selected += 1
+
+                    # Remove selected students from remaining_students
+                    remaining_students = [s for s in remaining_students if s not in open_selected]
+
+                # Step 7.3: Update the selected students
+                for student in open_selected:
+                    student.selected = True
+                    student.last_selection_year = year
+                    student.save(update_fields=['selected', 'last_selection_year'])
+
+            return Response(
+                {"message": f"Successfully selected {total_selected} {year} {gender} students based on seat matrix."},
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            print(f"Error in SelectStudentsView: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

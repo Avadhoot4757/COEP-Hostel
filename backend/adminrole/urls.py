@@ -19,4 +19,9 @@ urlpatterns = [
     path("managers/<int:user_id>/", ManagersView.as_view(), name="manager-detail"),
     path("students/", StudentsView.as_view(), name="students"),
     path("seat-matrix/", SeatMatrixView.as_view(), name="seat-matrix"),
+    path("allot-branch-ranks/", AllotBranchRanksView.as_view(), name="allot-branch-ranks"),
+    path('select-students/', SelectStudentsView.as_view(), name='select-students'),
+    path('get-students/', GetStudentsView.as_view(), name='get-students'),
+    path('select-student/', SelectStudentView.as_view(), name='select-student'),
+    path('remove-student/', RemoveStudentView.as_view(), name='remove-student'),
 ]

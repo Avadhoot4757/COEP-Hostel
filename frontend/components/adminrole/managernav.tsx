@@ -17,6 +17,7 @@ export function ManagerNavbar() {
     { name: "Students", href: "/manager", icon: <Users className="h-5 w-5" /> },
     { name: "Wardens", href: "/wardens", icon: <Shield className="h-5 w-5" /> },
     { name: "BVC", href: "/bvc", icon: <Shield className="h-5 w-5" /> },
+    { name: "View Verified Students", href: "/managerHome/view-verified-students", icon: <Users className="h-5 w-5" /> },
   ]
 
   return (

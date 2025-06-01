@@ -183,15 +183,15 @@ LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
-        'file': {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'filename': '/home/avadhoot/projects/COEP-Hostel/logs/django.log',
-        },
+        # 'file': {
+        #     'level': 'INFO',
+        #     'class': 'logging.FileHandler',
+        #     'filename': '/home/avadhoot/projects/COEP-Hostel/logs/django.log',
+        # },
     },
     'loggers': {
         'allotment': {
-            'handlers': ['file'],
+            'handlers': [],
             'level': 'INFO',
             'propagate': True,
         },
