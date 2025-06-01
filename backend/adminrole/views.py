@@ -1,16 +1,23 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from authentication.models import StudentDataEntry
+from authentication.models import *
+from allotment.models import *
 from .serializers import *
 from authentication.permissions import *
 from rest_framework.permissions import IsAuthenticated
 from .models  import *
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
+<<<<<<< HEAD
 from .models import  SelectDates, SeatMatrix 
 from authentication.models import Branch,Caste,StudentDataEntry
 
+=======
+import sys
+import traceback
+from django.db.models import Count, Sum
+>>>>>>> 2fbec5d24066fc11e8a6c338556052d661dc83df
 
 User = get_user_model()
 
@@ -879,3 +886,128 @@ class SelectStudentsView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class DashboardView(APIView):
+    def get(self, request):
+        try:
+            print("Starting DashboardView GET request")
+            # Define year mappings
+            year_mapping = {
+                "fy": "First Year",
+                "sy": "Second Year",
+                "ty": "Third Year",
+                "btech": "Final Year",
+            }
+
+            # Initialize yearData structure
+            year_data = {
+                "first-year": {"name": "First Year", "male": {}, "female": {}},
+                "second-year": {"name": "Second Year", "male": {}, "female": {}},
+                "third-year": {"name": "Third Year", "male": {}, "female": {}},
+                "final-year": {"name": "Final Year", "male": {}, "female": {}},
+            }
+
+            # Initialize overall stats
+            overall_stats = {
+                "totalSeats": 0,
+                "totalRegistrations": 0,
+                "totalVerified": 0,
+                "totalPendingVerifications": 0,
+            }
+
+            # Calculate total registrations, verified, and pending verifications
+            print("Querying StudentDataEntry counts")
+            total_registrations = StudentDataEntry.objects.count()
+            total_verified = StudentDataEntry.objects.filter(verified=True).count()
+            total_pending = StudentDataEntry.objects.filter(verified=None).count()
+            print(f"Total Registrations: {total_registrations}, Verified: {total_verified}, Pending: {total_pending}")
+
+            overall_stats["totalRegistrations"] = total_registrations
+            overall_stats["totalVerified"] = total_verified
+            overall_stats["totalPendingVerifications"] = total_pending
+
+            # Calculate total seats per year and gender
+            for year_key, year_name in year_mapping.items():
+                class_name = year_key
+                frontend_year_key = {
+                    "fy": "first-year",
+                    "sy": "second-year",
+                    "ty": "third-year",
+                    "btech": "final-year",
+                }[year_key]
+
+                for gender in ["male", "female"]:
+                    print(f"Processing {year_name} - {gender}")
+                    # Calculate total seats: Count rooms and multiply by per_room_capacity
+                    seats_query = Room.objects.filter(
+                        floor__class_name=class_name,
+                        floor__gender=gender
+                    ).aggregate(
+                        room_count=Count('id'),
+                        total_capacity=Sum('floor__block__per_room_capacity')
+                    )
+                    room_count = seats_query["room_count"] or 0
+                    total_capacity = seats_query["total_capacity"] or 0
+                    print(f"Rooms: {room_count}, Total Capacity: {total_capacity}")
+
+                    # Calculate seats: rooms * per_room_capacity (avoid overcounting)
+                    if room_count > 0 and total_capacity > 0:
+                        per_room_capacity = total_capacity // room_count
+                        total_seats = room_count * per_room_capacity
+                    else:
+                        total_seats = 0
+                    print(f"Calculated Total Seats: {total_seats}")
+
+                    # Get stats for registrations, verified, and pending
+                    query = StudentDataEntry.objects.filter(
+                        class_name=class_name,
+                        gender=gender
+                    )
+                    registrations = query.count()
+                    verified = query.filter(verified=True).count()
+                    pending_verifications = query.filter(verified=None).count()
+                    print(f"Registrations: {registrations}, Verified: {verified}, Pending Verifications: {pending_verifications}")
+
+                    # Determine status
+                    if registrations > 0 and verified == 0:
+                        status_value = "registration"
+                    elif verified > 0 and pending_verifications > 0:
+                        status_value = "verification"
+                    elif verified > 0 and pending_verifications == 0 and verified < registrations:
+                        status_value = "selection"
+                    else:
+                        status_value = "completed"
+                    print(f"Status: {status_value}")
+
+                    # Populate yearData
+                    year_data[frontend_year_key][gender] = {
+                        "totalSeats": total_seats,
+                        "registrations": registrations,
+                        "verified": verified,
+                        "pendingVerifications": pending_verifications,
+                        "status": status_value,
+                    }
+
+                # Update total seats
+                male_seats = year_data[frontend_year_key]["male"]["totalSeats"]
+                female_seats = year_data[frontend_year_key]["female"]["totalSeats"]
+                overall_stats["totalSeats"] += male_seats + female_seats
+                print(f"Updated Total Seats for {year_name}: Male={male_seats}, Female={female_seats}, Overall={overall_stats['totalSeats']}")
+
+            print("Returning successful response")
+            return Response(
+                {
+                    "yearData": year_data,
+                    "overallStats": overall_stats,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            print("Error in DashboardView:", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            print(f"Exception message: {str(e)}", file=sys.stderr)
+            return Response(
+                {"error": f"Failed to fetch dashboard data: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
