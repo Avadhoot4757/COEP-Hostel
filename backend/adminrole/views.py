@@ -9,15 +9,14 @@ from rest_framework.permissions import IsAuthenticated
 from .models  import *
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
-<<<<<<< HEAD
+
 from .models import  SelectDates, SeatMatrix 
 from authentication.models import Branch,Caste,StudentDataEntry
 
-=======
 import sys
 import traceback
 from django.db.models import Count, Sum
->>>>>>> 2fbec5d24066fc11e8a6c338556052d661dc83df
+
 
 User = get_user_model()
 
