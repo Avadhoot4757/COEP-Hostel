@@ -19,4 +19,5 @@ urlpatterns = [
     path("managers/<int:user_id>/", ManagersView.as_view(), name="manager-detail"),
     path("students/", StudentsView.as_view(), name="students"),
     path("seat-matrix/", SeatMatrixView.as_view(), name="seat-matrix"),
+    path("dashboard/", DashboardView.as_view(), name="dashboard"),
 ]

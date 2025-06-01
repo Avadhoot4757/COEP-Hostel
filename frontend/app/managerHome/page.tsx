@@ -1,332 +1,230 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Users, Bed, UserCheck, Loader2, User, User2 } from "lucide-react"
+import api from "@/lib/api"
+import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/components/ui/use-toast"
-import { fetchStudentsByYear } from "@/lib/api-utils"
 
-interface Student {
-  roll_no: string
-  first_name: string
-  middle_name?: string
-  last_name?: string
-  class_name: string
-  branch: {
-    name: string
-  }
-  verified: boolean | null
-  caste: {
-    name: string
-  }
-  admission_category: {
-    name: string
-  }
-  gender: string
+interface GenderStats {
+  totalSeats: number
+  registrations: number
+  verified: number
+  pendingVerifications: number
+  status: string
 }
 
-export default function ManagerPage() {
-  const [selectedYear, setSelectedYear] = useState<string>("fy")
-  const [allStudents, setAllStudents] = useState<Student[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [activeTab, setActiveTab] = useState<string>("pending")
-  const [selectedGender, setSelectedGender] = useState<string>("all")
+interface YearData {
+  name: string
+  male: GenderStats
+  female: GenderStats
+}
+
+interface DashboardData {
+  yearData: {
+    [key: string]: YearData
+  }
+  overallStats: {
+    totalSeats: number
+    totalRegistrations: number
+    totalVerified: number
+    totalPendingVerifications: number
+  }
+}
+
+export default function Dashboard() {
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { isAuthenticated, loading: authLoading, checkAuth } = useAuth()
   const router = useRouter()
-  const { toast } = useToast()
 
-  const yearOptions = [
-    { value: "fy", label: "First Year" },
-    { value: "sy", label: "Second Year" },
-    { value: "ty", label: "Third Year" },
-    { value: "btech", label: "Final Year" },
-  ]
-
-  const genderOptions = [
-    { value: "all", label: "All Genders" },
-    { value: "male", label: "Male" },
-    { value: "female", label: "Female" },
-    { value: "other", label: "Other" },
-  ]
-
-  // Load students only when year changes (single API call)
   useEffect(() => {
-    loadStudents()
-  }, [selectedYear])
-
-  const loadStudents = async () => {
-    setLoading(true)
-    try {
-      const data = await fetchStudentsByYear(selectedYear);
-      setAllStudents(data);
-    } catch (error) {
-      console.error("Error fetching students:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load student data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Frontend filtering - applied instantly without API calls
-  const filteredStudents = useMemo(() => {
-    let filtered = [...allStudents]
-
-    // Filter by verification status
-    switch (activeTab) {
-      case "pending":
-        filtered = filtered.filter(student => student.verified === null)
-        break
-      case "verified":
-        filtered = filtered.filter(student => student.verified === true)
-        break
-      case "rejected":
-        filtered = filtered.filter(student => student.verified === false)
-        break
-    }
-    
-    if (selectedGender !== "all") {
-      filtered = filtered.filter(student => student.gender === selectedGender);
+    const verifyAuth = async () => {
+      const isValid = await checkAuth()
+      if (!isValid) {
+        router.push("/?auth=login")
+      }
     }
 
-    return filtered
-  }, [allStudents, activeTab, selectedGender])
-
-  // Calculate status counts for tab badges
-  const statusCounts = useMemo(() => {
-    const genderFiltered = selectedGender === "all" 
-      ? allStudents 
-      : allStudents.filter(s => s.gender?.toLowerCase() === selectedGender.toLowerCase())
-
-    return {
-      pending: genderFiltered.filter(s => s.verified === null).length,
-      verified: genderFiltered.filter(s => s.verified === true).length,
-      rejected: genderFiltered.filter(s => s.verified === false).length,
-      total: genderFiltered.length
+    if (!authLoading && !isAuthenticated) {
+      verifyAuth()
+    } else if (isAuthenticated) {
+      const fetchDashboardData = async () => {
+        try {
+          setLoading(true)
+          const response = await api.get("/adminrole/dashboard/")
+          setData(response.data)
+        } catch (error: any) {
+          console.error("Error fetching dashboard data:", error)
+          setError(error.response?.data?.error || "Failed to load dashboard data")
+        } finally {
+          setLoading(false)
+        }
+      }
+      fetchDashboardData()
     }
-  }, [allStudents, selectedGender])
+  }, [authLoading, isAuthenticated, checkAuth, router])
 
-  const handleYearChange = (value: string) => {
-    setSelectedYear(value)
-    // Reset filters when changing year
-    setActiveTab("pending")
-    setSelectedGender("all")
-  }
-
-  const handleViewStudent = (rollNo: string) => {
-    router.push(`/managerHome/student/${rollNo}`)
-  }
-
-  const getStatusBadge = (status: boolean | null) => {
-    if (status === null) {
-      return <Badge className="bg-yellow-500 text-white">Pending</Badge>
-    } else if (status === true) {
-      return <Badge className="bg-green-500 text-white">Verified</Badge>
-    } else {
-      return <Badge className="bg-red-500 text-white">Rejected</Badge>
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Student Manager Dashboard</h1>
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-500">Academic Year 2024-25</span>
-          <Badge className="bg-green-500">Active</Badge>
+  if (authLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4 p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
+    )
+  }
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Student Verification</CardTitle>
-          <CardDescription>
-            View and verify student applications by year • 
-            <span className="text-blue-600 font-medium"> Total: {statusCounts.total} students</span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Filter Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Academic Year</label>
-                <Select value={selectedYear} onValueChange={handleYearChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {yearOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+  if (!isAuthenticated) {
+    return null
+  }
 
-              <div>
-                <label className="text-sm font-medium mb-1 block">Gender Filter</label>
-                <Select value={selectedGender} onValueChange={setSelectedGender}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {genderOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="p-6 bg-white/80 backdrop-blur-sm rounded-lg shadow-lg text-red-600">
+          {error}
+        </div>
+      </div>
+    )
+  }
 
-              <div className="flex items-end">
-                <div className="text-sm text-blue-600">
-                  <div className="flex items-center">
-                    <span className="inline-block w-2 h-2 bg-blue-600 rounded-full mr-2"></span>
-                    <span className="font-medium">
-                      {yearOptions.find((y) => y.value === selectedYear)?.label}
-                    </span>
-                  </div>
-                  {selectedGender !== "all" && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Filtered by: {genderOptions.find((g) => g.value === selectedGender)?.label}
+  if (!data) {
+    return null
+  }
+
+  const { yearData, overallStats } = data
+
+  return (
+    <div className="flex-1 space-y-6 p-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Hostel Management Dashboard</h1>
+        <p className="text-muted-foreground">Manage hostel allotments by year and gender</p>
+      </div>
+
+      {/* Overall Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Seats</CardTitle>
+            <Bed className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overallStats.totalSeats}</div>
+            <p className="text-xs text-muted-foreground">Across all years</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Registrations</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overallStats.totalRegistrations}</div>
+            <p className="text-xs text-muted-foreground">All years combined</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Verified Students</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overallStats.totalVerified}</div>
+            <p className="text-xs text-muted-foreground">Documents verified</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Verifications</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{overallStats.totalPendingVerifications}</div>
+            <p className="text-xs text-muted-foreground">Awaiting verification</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Year-wise Breakdown */}
+      <Tabs defaultValue="first-year" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="first-year">First Year</TabsTrigger>
+          <TabsTrigger value="second-year">Second Year</TabsTrigger>
+          <TabsTrigger value="third-year">Third Year</TabsTrigger>
+          <TabsTrigger value="final-year">Final Year</TabsTrigger>
+        </TabsList>
+
+        {Object.entries(yearData).map(([yearKey, yearInfo]) => (
+          <TabsContent key={yearKey} value={yearKey} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Male Stats */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-blue-600" />
+                    {yearInfo.name} - Male
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium">Total Seats</p>
+                      <p className="text-2xl font-bold">{yearInfo.male.totalSeats}</p>
                     </div>
-                  )}
-                </div>
-              </div>
+                    <div>
+                      <p className="text-sm font-medium">Registrations</p>
+                      <p className="text-2xl font-bold">{yearInfo.male.registrations}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Verified</p>
+                      <p className="text-2xl font-bold">{yearInfo.male.verified}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Pending Verifications</p>
+                      <p className="text-2xl font-bold">{yearInfo.male.pendingVerifications}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Female Stats */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User2 className="h-5 w-5 text-pink-600" />
+                    {yearInfo.name} - Female
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium">Total Seats</p>
+                      <p className="text-2xl font-bold">{yearInfo.female.totalSeats}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Registrations</p>
+                      <p className="text-2xl font-bold">{yearInfo.female.registrations}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Verified</p>
+                      <p className="text-2xl font-bold">{yearInfo.female.verified}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Pending Verifications</p>
+                      <p className="text-2xl font-bold">{yearInfo.female.pendingVerifications}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-
-            {/* Status Tabs with Counts */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="pending" className="relative">
-                  Pending
-                  <Badge variant="secondary" className="ml-2 text-xs bg-yellow-100 text-yellow-800">
-                    {statusCounts.pending}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="verified" className="relative">
-                  Verified
-                  <Badge variant="secondary" className="ml-2 text-xs bg-green-100 text-green-800">
-                    {statusCounts.verified}
-                  </Badge>
-                </TabsTrigger>
-                <TabsTrigger value="rejected" className="relative">
-                  Rejected
-                  <Badge variant="secondary" className="ml-2 text-xs bg-red-100 text-red-800">
-                    {statusCounts.rejected}
-                  </Badge>
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value={activeTab} className="mt-4">
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                      <p className="text-gray-500">Loading students...</p>
-                    </div>
-                  </div>
-                ) : filteredStudents.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-gray-400 mb-2">
-                      <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-4.586a1 1 0 00-.707.293L16 15H8l-2.707-1.707A1 1 0 004.586 13H0" />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-1">No students found</h3>
-                    <p className="text-gray-500">
-                      No {activeTab} students found for {yearOptions.find((y) => y.value === selectedYear)?.label}
-                      {selectedGender !== "all" && ` with gender filter: ${genderOptions.find((g) => g.value === selectedGender)?.label}`}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-lg">
-                      <span>
-                        Showing <span className="font-semibold text-blue-600">{filteredStudents.length}</span> of{" "}
-                        <span className="font-semibold">{allStudents.length}</span> students
-                      </span>
-                      <span className="text-xs">
-                        Status: <span className="capitalize font-medium">{activeTab}</span>
-                      </span>
-                    </div>
-
-                    <div className="border rounded-lg overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-gray-50">
-                            <TableHead className="font-semibold">Roll No</TableHead>
-                            <TableHead className="font-semibold">Name</TableHead>
-                            <TableHead className="font-semibold">Branch</TableHead>
-                            <TableHead className="font-semibold">Gender</TableHead>
-                            <TableHead className="font-semibold">Category</TableHead>
-                            <TableHead className="font-semibold">Status</TableHead>
-                            <TableHead className="text-right font-semibold">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredStudents.map((student, index) => (
-                            <TableRow 
-                              key={student.roll_no} 
-                              className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                            >
-                              <TableCell className="font-medium text-blue-600">
-                                {student.roll_no}
-                              </TableCell>
-                              <TableCell>
-                                <div className="font-medium">
-                                  {student.first_name} {student.middle_name || ""} {student.last_name || ""}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                  {student.branch?.name}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <span className="capitalize text-sm font-medium">
-                                  {student.gender || "Not specified"}
-                                </span>
-                              </TableCell>
-                              <TableCell>
-                                <div className="text-sm">
-                                  <div className="font-medium">{student.admission_category.name}</div>
-                                  <div className="text-gray-500">({student.caste.name})</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>{getStatusBadge(student.verified)}</TableCell>
-                              <TableCell className="text-right">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleViewStudent(student.roll_no)}
-                                  className="hover:bg-blue-50 hover:border-blue-300"
-                                >
-                                  View Details
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
-        </CardContent>
-      </Card>
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   )
 }
