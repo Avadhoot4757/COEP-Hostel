@@ -523,12 +523,11 @@ export default function SeatMatrixPage() {
 
   const handleCasteDelete = async () => {
     if (selectedCastes.length === 0) {
-      toast({
+      return toast({
         title: "Error",
         description: "Please select at least one caste to delete.",
         variant: "destructive",
       })
-      return
     }
     try {
       await Promise.all(selectedCastes.map(caste => api.delete(`/auth/castes/${caste}/?year=${className}`)))

@@ -121,7 +121,7 @@ export default function ManagerPage() {
   }
 
   const handleViewStudent = (rollNo: string) => {
-    router.push(`/managerHome/student/${rollNo}`)
+    router.push(`/manager/student/${rollNo}`)
   }
 
   const getStatusBadge = (status: boolean | null) => {

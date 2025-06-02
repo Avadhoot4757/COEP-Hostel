@@ -142,11 +142,11 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
       // console.log("trying to pring the current user via USER",User);
       console.log("going in landing page with ",userData.user_type);
       if(userData.user_type==='manager'){
-        router.push("/managerHome");
+        router.push("/manager");
       }if(userData.user_type==='rector'){
         router.push("/rectorHome");
       }else if(userData.user_type==='manager'){
-        router.push("/managerHome");
+        router.push("/manager");
       }else{
         router.push("/landing");
       }

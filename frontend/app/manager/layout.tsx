@@ -2,18 +2,10 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/adminrole/app-sidebar"
 import { Separator } from "@/components/ui/separator"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
+import { DynamicBreadcrumb } from "@/components/ui/dynamic-breadcrumb"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -21,6 +13,33 @@ export const metadata: Metadata = {
   title: "Hostel Manager Dashboard",
   description: "Comprehensive hostel allotment management system",
 }
+
+export const managementItems = [
+  {
+    title: "Dashboard",
+    url: "/managerHome",
+  },
+  {
+    title: "Open Registrations",
+    url: "/managerHome/open-registrations",
+  },
+  {
+    title: "Seat Matrix",
+    url: "/managerHome/seat-matrix",
+  },
+  {
+    title: "Verify Students",
+    url: "/managerHome/verify-students",
+  },
+  {
+    title: "Select Students",
+    url: "/managerHome/select-students",
+  },
+  {
+    title: "Room Preference Period",
+    url: "/managerHome/room-preference-period",
+  },
+]
 
 export default function RootLayout({
   children,
@@ -37,17 +56,7 @@ export default function RootLayout({
               <div className="flex items-center gap-2 px-4">
                 <SidebarTrigger className="-ml-1" />
                 <Separator orientation="vertical" className="mr-2 h-4" />
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem className="hidden md:block">
-                      <BreadcrumbLink href="/managerHome">Hostel Management</BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator className="hidden md:block" />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>Seat Matrix</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
+                <DynamicBreadcrumb managementItems={managementItems} />
               </div>
             </header>
             {children}

@@ -9,14 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models  import *
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
-
-from .models import  SelectDates, SeatMatrix 
-from authentication.models import Branch,Caste,StudentDataEntry
-
-import sys
-import traceback
 from django.db.models import Count, Sum
-
 
 User = get_user_model()
 
@@ -179,7 +172,6 @@ class SetDatesView(APIView):
 #     def post(self,request):
 #         #save the dates or set new dates 
 #         data=request.data
-#         print("printing the data like ",data)
 #         return Response({"message": "Dates saved successfully"}, status=200)
 #         #FOR TESTING 
 #         for event_key, date_value in data.items():
@@ -561,7 +553,6 @@ class AllotBranchRanksView(APIView):
 
             # Step 2: Filter students with the specified class_name and gender
             students = StudentDataEntry.objects.filter(class_name=year, gender=gender).select_related('branch')
-            print(students.query)  # Debug: Print the SQL query
 
             if not students.exists():
                 return Response(
@@ -606,7 +597,6 @@ class AllotBranchRanksView(APIView):
             )
 
         except Exception as e:
-            print(f"Error in AllotBranchRanksView: {str(e)}")
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -627,9 +617,7 @@ class StudentsView(APIView):
 from django.db.models import Q
 
 class GetStudentsView(APIView):
-    print("GetStudentsView initialized")
     permission_classes = [IsAuthenticated, IsManager]
-    print("GetStudentsView permission classes set")
     def get(self, request):
         """Fetch verified students for a given year, gender, and category."""
         try:
@@ -680,7 +668,6 @@ class GetStudentsView(APIView):
             return Response({"students": student_data}, status=status.HTTP_200_OK)
 
         except Exception as e:
-            print(f"Error in GetStudentsView: {str(e)}")
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -713,7 +700,6 @@ class SelectStudentView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            print(f"Error in SelectStudentView: {str(e)}")
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -746,7 +732,6 @@ class RemoveStudentView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            print(f"Error in RemoveStudentView: {str(e)}")
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -880,7 +865,6 @@ class SelectStudentsView(APIView):
             )
 
         except Exception as e:
-            print(f"Error in SelectStudentsView: {str(e)}")
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -889,7 +873,6 @@ class SelectStudentsView(APIView):
 class DashboardView(APIView):
     def get(self, request):
         try:
-            print("Starting DashboardView GET request")
             # Define year mappings
             year_mapping = {
                 "fy": "First Year",
@@ -915,11 +898,9 @@ class DashboardView(APIView):
             }
 
             # Calculate total registrations, verified, and pending verifications
-            print("Querying StudentDataEntry counts")
             total_registrations = StudentDataEntry.objects.count()
             total_verified = StudentDataEntry.objects.filter(verified=True).count()
             total_pending = StudentDataEntry.objects.filter(verified=None).count()
-            print(f"Total Registrations: {total_registrations}, Verified: {total_verified}, Pending: {total_pending}")
 
             overall_stats["totalRegistrations"] = total_registrations
             overall_stats["totalVerified"] = total_verified
@@ -936,7 +917,6 @@ class DashboardView(APIView):
                 }[year_key]
 
                 for gender in ["male", "female"]:
-                    print(f"Processing {year_name} - {gender}")
                     # Calculate total seats: Count rooms and multiply by per_room_capacity
                     seats_query = Room.objects.filter(
                         floor__class_name=class_name,
@@ -947,7 +927,6 @@ class DashboardView(APIView):
                     )
                     room_count = seats_query["room_count"] or 0
                     total_capacity = seats_query["total_capacity"] or 0
-                    print(f"Rooms: {room_count}, Total Capacity: {total_capacity}")
 
                     # Calculate seats: rooms * per_room_capacity (avoid overcounting)
                     if room_count > 0 and total_capacity > 0:
@@ -955,7 +934,6 @@ class DashboardView(APIView):
                         total_seats = room_count * per_room_capacity
                     else:
                         total_seats = 0
-                    print(f"Calculated Total Seats: {total_seats}")
 
                     # Get stats for registrations, verified, and pending
                     query = StudentDataEntry.objects.filter(
@@ -965,7 +943,6 @@ class DashboardView(APIView):
                     registrations = query.count()
                     verified = query.filter(verified=True).count()
                     pending_verifications = query.filter(verified=None).count()
-                    print(f"Registrations: {registrations}, Verified: {verified}, Pending Verifications: {pending_verifications}")
 
                     # Determine status
                     if registrations > 0 and verified == 0:
@@ -976,7 +953,6 @@ class DashboardView(APIView):
                         status_value = "selection"
                     else:
                         status_value = "completed"
-                    print(f"Status: {status_value}")
 
                     # Populate yearData
                     year_data[frontend_year_key][gender] = {
@@ -991,9 +967,7 @@ class DashboardView(APIView):
                 male_seats = year_data[frontend_year_key]["male"]["totalSeats"]
                 female_seats = year_data[frontend_year_key]["female"]["totalSeats"]
                 overall_stats["totalSeats"] += male_seats + female_seats
-                print(f"Updated Total Seats for {year_name}: Male={male_seats}, Female={female_seats}, Overall={overall_stats['totalSeats']}")
 
-            print("Returning successful response")
             return Response(
                 {
                     "yearData": year_data,
@@ -1002,9 +976,6 @@ class DashboardView(APIView):
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
-            print("Error in DashboardView:", file=sys.stderr)
-            traceback.print_exc(file=sys.stderr)
-            print(f"Exception message: {str(e)}", file=sys.stderr)
             return Response(
                 {"error": f"Failed to fetch dashboard data: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

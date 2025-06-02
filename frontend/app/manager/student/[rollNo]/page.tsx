@@ -198,7 +198,7 @@ export default function StudentDetailPage() {
         <AlertTriangle className="h-12 w-12 text-yellow-500 mb-4" />
         <h2 className="text-2xl font-bold mb-2">Student Not Found</h2>
         <p className="text-gray-500 mb-6">The student with roll number {rollNo} could not be found.</p>
-        <Button onClick={() => router.push("/managerHome")}>Back to Student List</Button>
+        <Button onClick={() => router.push("/manager")}>Back to Student List</Button>
       </div>
     )
   }
@@ -207,7 +207,7 @@ export default function StudentDetailPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={() => router.push("/managerHome")}>
+          <Button variant="outline" onClick={() => router.push("/manager")}>
             Back to List
           </Button>
           <h1 className="text-2xl font-bold">Student Details</h1>
@@ -424,7 +424,7 @@ export default function StudentDetailPage() {
             </Tabs>
           </CardContent>
           <CardFooter className="flex justify-between border-t pt-6">
-            <Button variant="outline" onClick={() => router.push("/managerHome")}>
+            <Button variant="outline" onClick={() => router.push("/manager")}>
               Back to List
             </Button>
             <div className="space-x-2">
