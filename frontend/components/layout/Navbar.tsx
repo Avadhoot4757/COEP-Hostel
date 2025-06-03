@@ -5,11 +5,11 @@ import { Building2, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface NavbarProps {
-  onRegisterClick: () => void;
+
   onLoginClick: () => void; // Add this
 }
 
-export default function Navbar({ onRegisterClick, onLoginClick }: NavbarProps) {
+export default function Navbar({ onLoginClick }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -43,12 +43,7 @@ export default function Navbar({ onRegisterClick, onLoginClick }: NavbarProps) {
                 {item}
               </a>
             ))}
-            <Button
-              onClick={onRegisterClick}
-              className="bg-[#ff3333] hover:bg-[#cc0000] text-white"
-            >
-              Register
-            </Button>
+
             <Button
               onClick={onLoginClick}
               className="bg-[#ff3333] hover:bg-[#cc0000] text-white"
@@ -70,15 +65,7 @@ export default function Navbar({ onRegisterClick, onLoginClick }: NavbarProps) {
                 {item}
               </a>
             ))}
-            <Button
-              onClick={() => {
-                onRegisterClick();
-                setMobileMenuOpen(false);
-              }}
-              className="w-full bg-[#ff3333] hover:bg-[#cc0000] text-white"
-            >
-              Register
-            </Button>
+
             <Button
               onClick={() => {
                 onLoginClick();
