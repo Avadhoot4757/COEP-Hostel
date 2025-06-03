@@ -12,7 +12,7 @@ urlpatterns = [
     path('students/year/', StudentsByYearView.as_view(), name='students-by-year'),
     path('students/<str:roll_no>/', StudentDetailView.as_view(), name='student-detail'),
     # path('rectorHome',rectorHomeView.as_view(),name='rectorHome'),
-    path('set-dates/',SetDatesView.as_view(),name='setDates'),
+    # path('set-dates/',SetDatesView.as_view(),name='setDates'),
     path("wardens/", WardensView.as_view(), name="wardens"),
     path("wardens/<int:user_id>/", WardensView.as_view(), name="warden-detail"),
     path("managers/", ManagersView.as_view(), name="managers"),
@@ -25,5 +25,5 @@ urlpatterns = [
     path('get-students/', GetStudentsView.as_view(), name='get-students'),
     path('select-student/', SelectStudentView.as_view(), name='select-student'),
     path('remove-student/', RemoveStudentView.as_view(), name='remove-student'),
-
+    path('open-registration/', OpenRegistrationView.as_view(), name='open-registration'),
 ]

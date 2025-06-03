@@ -117,8 +117,8 @@ class SeatMatrixView(APIView):
 #             return Response({"error": "Student not found or not rejected."}, status=status.HTTP_404_NOT_FOUND)
 
 
-class SetDatesView(APIView):
-    permission_classes = [IsAuthenticated, IsRector]
+class OpenRegistrationView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
 
     def get(self, request):
         year = request.query_params.get("year")
@@ -150,6 +150,27 @@ class SetDatesView(APIView):
             return Response(
                 {"error": f"All events must be provided: {', '.join(required_events)}"},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            year = request.data[0].get('year')
+            
+            # Save new dates
+            for event_data in data:
+                SelectDates.objects.create(
+                    year=year,
+                    event=event_data.get('event'),
+                    start_date=event_data.get('start_date'),
+                    end_date=event_data.get('end_date')
+                )
+                
+            return Response(
+                {"message": "Registration dates saved successfully"},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to save dates: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 # class setDatesView(APIView):
