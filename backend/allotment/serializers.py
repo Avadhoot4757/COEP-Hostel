@@ -85,7 +85,7 @@ class RoomInviteSerializer(serializers.ModelSerializer):
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
-        fields = ['room_id', 'is_occupied']
+        fields = ['id', 'room_id', 'is_occupied', 'floor']
 
 class FloorSerializer(serializers.ModelSerializer):
     rooms = RoomSerializer(many=True, read_only=True)
@@ -94,7 +94,7 @@ class FloorSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Floor
-        fields = ['number', 'name', 'rooms', 'gender', 'class_name', 'hostel_map_image']
+        fields = ['id', 'block', 'number', 'name', 'rooms', 'gender', 'class_name', 'hostel_map_image']
 
 class BlockSerializer(serializers.ModelSerializer):
     floors = FloorSerializer(many=True, read_only=True)

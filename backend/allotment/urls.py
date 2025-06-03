@@ -1,5 +1,11 @@
-from django.urls import path
+from django.urls import path, include
 from .views import *
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'blocks', BlockViewSet)
+router.register(r'floors', FloorViewSet)
+router.register(r'rooms-crud', RoomViewSet)
 
 urlpatterns = [
     path('user-events/', UserEventsView.as_view(), name='user-events'),
@@ -8,5 +14,6 @@ urlpatterns = [
     path("student-available/", AvailableStudentsView.as_view(), name="available-students"),
     path("invites/", RoomInvitesView.as_view(), name="room-invites"),
     path('preferences/', PreferenceView.as_view(), name='preferences'),
+    path('api/', include(router.urls))
 ]
 
