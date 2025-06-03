@@ -10,6 +10,7 @@ import ForgotPassword from "./ForgotPassword";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/components/ui/use-toast";
 
 interface AuthModalProps {
   isLogin: boolean;
@@ -103,7 +104,12 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
 
         setOtpField(true);
         setToken(response.data.token);
-        alert("OTP has been sent to your email");
+        toast({
+          title: "OTP Sent",
+          description: "An OTP has been sent to your email address.",
+          variant: "default",
+          duration: 3000,
+        })
       } catch (error: any) {
         console.error("Error requesting OTP:", error);
         setErrors({
@@ -137,7 +143,14 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
 
       await login(userData);
 
-      alert(isLogin ? "Login successful!" : "Registration successful!");
+      toast({
+        title: isLogin ? "Login Successful" : "Registration Successful",
+        description: isLogin 
+          ? "Welcome back to COEP Hostel Portal" 
+          : "Your account has been created successfully",
+        variant: "success",
+        duration: 3000,
+      });
       onClose();
       // console.log("trying to pring the current user via USER",User);
       console.log("going in landing page with ",userData.user_type);

@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { toast } from "@/components/ui/use-toast";
 
 interface Student {
   id: number;
@@ -74,12 +75,17 @@ export default function StudentsPage() {
       const response = await api.post("/allot/student-available/", {
         receiver_id: receiverId,
       });
-      alert(response.data.message);
+      // alert(response.data.message);
       const updatedResponse = await api.get("/allot/student-available/");
       setStudents(updatedResponse.data);
     } catch (error: any) {
       console.error("Error sending invite:", error);
-      alert(error.response?.data?.error || "Failed to send invite");
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to send invite",
+        variant: "destructive",
+        duration: 3000,
+      })
     }
   };
 

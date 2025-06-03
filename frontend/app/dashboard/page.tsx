@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { toast } from "@/components/ui/use-toast";
 
 interface Member {
   username: string;
@@ -162,7 +163,12 @@ export default function DashboardPage() {
     try {
       await api.post("/allot/room-status/", {});
       setRoomStatus(null);
-      alert("Successfully left the room group");
+      toast({
+        title: "Left Room Group",
+        description: "You have successfully left the room group.",
+        variant: "success",
+        duration: 3000,
+      })
     } catch (error: any) {
       console.error("Error leaving room group:", error);
       alert(error.response?.data?.error || "Failed to leave room group");

@@ -10,6 +10,7 @@ import Image from "next/image";
 import { DndContext, closestCenter, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { toast } from "@/components/ui/use-toast";
 
 interface Room {
   room_id: string;
@@ -181,7 +182,12 @@ export default function RoomsPage() {
 
     try {
       await api.post("/allot/preferences/", { preferences });
-      alert("Preferences saved successfully!");
+      toast({
+        title: "Preferences saved successfully",
+        description: "Your room preferences have been saved.",
+        variant: "success",
+        duration: 3000,
+      })
       setSaveError(null);
     } catch (err: any) {
       console.error("Error saving preferences:", err);

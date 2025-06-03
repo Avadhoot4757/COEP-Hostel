@@ -47,8 +47,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
@@ -62,7 +61,6 @@ export default function RootLayout({
             {children}
           </SidebarInset>
         </SidebarProvider>
-      </body>
-    </html>
+
   )
 }

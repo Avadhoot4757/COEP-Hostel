@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { toast } from "@/components/ui/use-toast";
 
 interface Invite {
   id: number;
@@ -92,7 +93,12 @@ export default function InvitesPage() {
   const handleAccept = async (inviteId: number) => {
     try {
       await api.post("/allot/invites/", { invite_id: inviteId, action: "accept" });
-      alert("Invite accepted successfully");
+      toast({
+        title: "Invite accepted",
+        description: "You have successfully accepted the invite.",
+        variant: "success",
+        duration: 3000,
+      })
       const response = await api.get("/allot/invites/");
       setInvites({
         sent_invites: response.data.sent_invites || [],
@@ -100,14 +106,24 @@ export default function InvitesPage() {
       });
     } catch (error: any) {
       console.error("Error accepting invite:", error);
-      alert(error.response?.data?.error || "Failed to accept invite");
+      toast({
+        title: "Error accepting invite",
+        description: error.response?.data?.error || "Failed to accept invite",
+        variant: "destructive",
+        duration: 3000,
+      });
     }
   };
 
   const handleReject = async (inviteId: number) => {
     try {
       await api.post("/allot/invites/", { invite_id: inviteId, action: "reject" });
-      alert("Invite rejected successfully");
+      toast({
+        title: "Invite rejected",
+        description: "You have successfully rejected the invite.",
+        variant: "destructive",
+        duration: 3000,
+      })
       const response = await api.get("/allot/invites/");
       setInvites({
         sent_invites: response.data.sent_invites || [],
@@ -115,14 +131,24 @@ export default function InvitesPage() {
       });
     } catch (error: any) {
       console.error("Error rejecting invite:", error);
-      alert(error.response?.data?.error || "Failed to reject invite");
+      toast({
+        title: "Error rejecting invite",
+        description: error.response?.data?.error || "Failed to reject invite",
+        variant: "destructive",
+        duration: 3000,
+      });
     }
   };
 
   const handleCancel = async (inviteId: number) => {
     try {
       await api.post("/allot/invites/", { invite_id: inviteId, action: "cancel" });
-      alert("Invite cancelled successfully");
+      toast({
+        title: "Invite cancelled",
+        description: "You have successfully cancelled the invite.",
+        variant: "destructive",
+        duration: 3000,
+      })
       const response = await api.get("/allot/invites/");
       setInvites({
         sent_invites: response.data.sent_invites || [],
@@ -130,7 +156,12 @@ export default function InvitesPage() {
       });
     } catch (error: any) {
       console.error("Error cancelling invite:", error);
-      alert(error.response?.data?.error || "Failed to cancel invite");
+      toast({
+        title: "Error cancelling invite",
+        description: error.response?.data?.error || "Failed to cancel invite",
+        variant: "destructive",
+        duration: 3000,
+      });
     }
   };
 
