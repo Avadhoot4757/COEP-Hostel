@@ -30,11 +30,11 @@ interface Student {
   gender: string
   class_name: string
   branch: {
-    name: string
+    branch: string
   }
   blood_group: string
   admission_category: {
-    name: string
+    admission_category: string
   }
   caste: {
     name: string
@@ -253,7 +253,7 @@ export default function StudentDetailPage() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-500">Year & Branch</p>
               <p>
-                {getYearLabel(student.class_name)} - {student.branch?.name}
+                {getYearLabel(student.class_name)} - {student.branch?.branch}
               </p>
             </div>
 
@@ -265,7 +265,7 @@ export default function StudentDetailPage() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-500">Category</p>
               <p>
-                {student.admission_category.name} ({student.caste.name})
+                {student.admission_category.admission_category} ({student.caste.name})
               </p>
               {student.creamy_layer && <Badge variant="outline">Creamy Layer</Badge>}
             </div>
