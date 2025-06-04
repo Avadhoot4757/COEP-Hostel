@@ -26,5 +26,5 @@ urlpatterns = [
     path('select-student/', SelectStudentView.as_view(), name='select-student'),
     path('remove-student/', RemoveStudentView.as_view(), name='remove-student'),
     path('open-registration/', OpenRegistrationView.as_view(), name='open-registration'),
-
+    # path('room-preference-period/', RoomPreferencePeriodView.as_view(), name='room-preference-period'),
 ]
