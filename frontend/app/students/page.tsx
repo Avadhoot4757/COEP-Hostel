@@ -85,10 +85,10 @@ export default function StudentsPage() {
         duration: 3000,
       });
     } catch (error: any) {
-      console.error("Error sending invite:", error);
+      // console.error("Error sending invite:", error);
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Failed to send invite",
+        description: error.response?.data?.error || "Failed to send invite",
         variant: "destructive",
         duration: 3000,
       })
