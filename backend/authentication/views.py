@@ -8,7 +8,7 @@ from django.template.loader import render_to_string
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status, viewsets
-from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from authentication.permissions import *
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
@@ -585,3 +585,19 @@ class CookieTokenRefreshView(TokenRefreshView):
                 del response.data['refresh']
                 
         return response
+    
+class StudentDataVerificationView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
+    def get(self, request):
+        students = StudentDataVerification.objects.all()
+        serializer = StudentDataVerificationSerializer(students, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        is_many = isinstance(request.data, list)
+        serializer = StudentDataVerificationSerializer(data=request.data, many=is_many)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
