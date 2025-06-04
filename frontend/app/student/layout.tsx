@@ -1,53 +1,43 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import "./globals.css"
+import "../globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/adminrole/app-sidebar"
+import { AppSidebar } from "@/components/layout/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { DynamicBreadcrumb } from "@/components/ui/dynamic-breadcrumb"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Hostel Manager Dashboard",
-  description: "Comprehensive hostel allotment management system",
-}
+  title: "Hostel Allocation System",
+  description: "Find roommates and select hostel rooms",
+};
 
-export const managementItems = [
+const managementItems = [
   {
     title: "Dashboard",
-    url: "/manager",
+    url: "/student",
   },
   {
-    title: "Open Registrations",
-    url: "/manager/open-registrations",
+    title: "Students Directory",
+    url: "/student/students-directory",
   },
   {
-    title: "Seat Matrix",
-    url: "/manager/seat-matrix",
+    title: "Invites",
+    url: "/student/invites",
   },
   {
-    title: "Verify Students",
-    url: "/manager/verify-students",
-  },
-  {
-    title: "Select Students",
-    url: "/manager/select-students",
-  },
-  {
-    title: "Room Preference Period",
-    url: "/manager/room-preference-period",
+    title: "Room Preferences",
+    url: "/student/room-preferences",
   },
 ]
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
@@ -61,6 +51,5 @@ export default function RootLayout({
             {children}
           </SidebarInset>
         </SidebarProvider>
-
-  )
+  );
 }

@@ -68,7 +68,7 @@ export default function Home() {
       <Hero
         onApplyClick={() => {
           setIsLogin(false);
-          router.push('/landing');
+          router.push('/student');
           
         }}
       />

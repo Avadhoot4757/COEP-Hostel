@@ -10,6 +10,7 @@ from .models  import *
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.utils import timezone
 from django.db.models import Count, Sum
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -46,76 +47,6 @@ class SeatMatrixView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-# class PendingStudentsView(APIView):
-#     """Handles listing and verifying/rejecting pending students."""
-
-#     def get(self, request):
-#         """Return students with verified=None (pending verification)."""
-#         pending_students = StudentDataEntry.objects.filter(verified=None)
-#         serializer = StudentDataEntrySerializer(pending_students, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-#     def post(self, request):
-#         """Verify (True) or Reject (False) a student by roll_no."""
-#         roll_no = request.data.get('roll_no')
-#         verified = request.data.get('verified')  # Expecting True or False
-
-#         if verified not in [True, False]:
-#             return Response({"error": "Invalid value for 'verified' (must be True or False)."},
-#                             status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             student = StudentDataEntry.objects.get(roll_no=roll_no, verified=None)
-#             student.verified = verified
-#             student.save()
-#             return Response({"message": "Student status updated successfully."}, status=status.HTTP_200_OK)
-#         except StudentDataEntry.DoesNotExist:
-#             return Response({"error": "Student not found or already processed."}, status=status.HTTP_404_NOT_FOUND)
-
-# class VerifiedStudentsView(APIView):
-#     """Handles listing and rejecting verified students."""
-
-#     def get(self, request):
-#         """Return students who are verified (verified=True)."""
-#         verified_students = StudentDataEntry.objects.filter(verified=True)
-#         serializer = StudentDataEntrySerializer(verified_students, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-#     def post(self, request):
-#         """Reject a verified student (set verified=False) by roll_no."""
-#         roll_no = request.data.get('roll_no')
-
-#         try:
-#             student = StudentDataEntry.objects.get(roll_no=roll_no, verified=True)
-#             student.verified = False
-#             student.save()
-#             return Response({"message": "Student rejected successfully."}, status=status.HTTP_200_OK)
-#         except StudentDataEntry.DoesNotExist:
-#             return Response({"error": "Student not found or not verified."}, status=status.HTTP_404_NOT_FOUND)
-
-# class RejectedStudentsView(APIView):
-#     """Handles listing and verifying rejected students."""
-
-#     def get(self, request):
-#         """Return students who are rejected (verified=False)."""
-#         rejected_students = StudentDataEntry.objects.filter(verified=False)
-#         serializer = StudentDataEntrySerializer(rejected_students, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-#     def post(self, request):
-#         """Verify a rejected student (set verified=True) by roll_no."""
-#         roll_no = request.data.get('roll_no')
-
-#         try:
-#             student = StudentDataEntry.objects.get(roll_no=roll_no, verified=False)
-#             student.verified = True
-#             student.save()
-#             return Response({"message": "Student verified successfully."}, status=status.HTTP_200_OK)
-#         except StudentDataEntry.DoesNotExist:
-#             return Response({"error": "Student not found or not rejected."}, status=status.HTTP_404_NOT_FOUND)
-
 
 class OpenRegistrationView(APIView):
     permission_classes = [IsAuthenticated, IsManager]
@@ -172,161 +103,6 @@ class OpenRegistrationView(APIView):
                 {"error": f"Failed to save dates: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-# class setDatesView(APIView):
-#     permission_classes=[IsAuthenticated]
-#     def get(self,request):
-#         #fetching the dates from database 
-#         dates=SelectDates.objects.all().values('event_id','event','start_date','end_date')
-#     #mapping the dates for the dictionary in frontend 
-#         date_dict={
-#             'registrationStart': dates.filter(event='Registration Start').first().start_date.isoformat() if dates.filter(event='Registration Start').exists() else '',
-#                 'registrationEnd': dates.filter(event='Registration End').first().end_date.isoformat() if dates.filter(event='Registration End').exists() else '',
-#                 'resultDeclaration': dates.filter(event='Result Declaration').first().start_date.isoformat() if dates.filter(event='Result Declaration').exists() else '',
-#                 'roommakingStart': dates.filter(event='Room Making Start').first().start_date.isoformat() if dates.filter(event='Room Making Start').exists() else '',
-#                 'roommakingEnd': dates.filter(event='Room Making End').first().end_date.isoformat() if dates.filter(event='Room Making End').exists() else '',
-#                 'finalAllotment': dates.filter(event='Final Allotment').first().start_date.isoformat() if dates.filter(event='Final Allotment').exists() else '',
-#                 'verificationStart': dates.filter(event='Verification Start').first().start_date.isoformat() if dates.filter(event='Verification Start').exists() else '',
-#                 'verificationEnd': dates.filter(event='Verification End').first().end_date.isoformat() if dates.filter(event='Verification End').exists() else '',
-#         }
-#         return Response(date_dict)
-#     def post(self,request):
-#         #save the dates or set new dates 
-#         data=request.data
-#         return Response({"message": "Dates saved successfully"}, status=200)
-#         #FOR TESTING 
-#         for event_key, date_value in data.items():
-#             if date_value:  # Only update if a date is provided
-#                 event_name = event_key.replace('_', ' ').title()
-#                 obj, created = SelectDates.objects.update_or_create(
-#                     event=event_name,
-#                     defaults={
-#                         'start_date': date_value if 'Start' in event_name or 'Declaration' in event_name or 'Allotment' in event_name else None,
-#                         'end_date': date_value if 'End' in event_name else None
-#                     }
-#                 
-
-
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from authentication.models import StudentDataEntry
-from .serializers import StudentDataEntrySerializer, StudentDetailSerializer
-from authentication.permissions import IsManager, IsWarden
-from rest_framework.permissions import IsAuthenticated
-from .models import SelectDates
-from rest_framework_simplejwt.authentication import JWTAuthentication
-
-# class PendingStudentsView(APIView):
-#     """Handles listing and verifying/rejecting pending students."""
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated, IsManager]
-
-#     def get(self, request):
-#         """Return students with verified=None (pending verification)."""
-#         pending_students = StudentDataEntry.objects.filter(verified=None)
-#         serializer = StudentDataEntrySerializer(pending_students, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-#     def post(self, request):
-#         """Verify (True) or Reject (False) a student by roll_no."""
-#         roll_no = request.data.get('roll_no')
-#         verified = request.data.get('verified')  # Expecting True or False
-#         reason = request.data.get('reason')  # Optional rejection reason
-
-#         if verified not in [True, False]:
-#             return Response({"error": "Invalid value for 'verified' (must be True or False)."},
-#                             status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             student = StudentDataEntry.objects.get(roll_no=roll_no, verified=None)
-#             student.verified = verified
-#             # If we want to store rejection reasons, we would need to add a field to the model
-#             # student.rejection_reason = reason if not verified and reason else None
-#             student.save()
-#             return Response({"message": "Student status updated successfully."}, status=status.HTTP_200_OK)
-#         except StudentDataEntry.DoesNotExist:
-#             return Response({"error": "Student not found or already processed."}, status=status.HTTP_404_NOT_FOUND)
-
-# class VerifiedStudentsView(APIView):
-#     """Handles listing and rejecting verified students."""
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated, IsManager]
-
-#     def get(self, request):
-#         """Return students who are verified (verified=True)."""
-#         verified_students = StudentDataEntry.objects.filter(verified=True)
-#         serializer = StudentDataEntrySerializer(verified_students, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-#     def post(self, request):
-#         """Reject a verified student (set verified=False) by roll_no."""
-#         roll_no = request.data.get('roll_no')
-#         reason = request.data.get('reason')  # Optional rejection reason
-
-#         try:
-#             student = StudentDataEntry.objects.get(roll_no=roll_no, verified=True)
-#             student.verified = False
-#             # If we want to store rejection reasons, we would need to add a field to the model
-#             # student.rejection_reason = reason if reason else None
-#             student.save()
-#             return Response({"message": "Student rejected successfully."}, status=status.HTTP_200_OK)
-#         except StudentDataEntry.DoesNotExist:
-#             return Response({"error": "Student not found or not verified."}, status=status.HTTP_404_NOT_FOUND)
-
-# class RejectedStudentsView(APIView):
-#     """Handles listing and verifying rejected students."""
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated, IsManager]
-
-#     def get(self, request):
-#         """Return students who are rejected (verified=False)."""
-#         rejected_students = StudentDataEntry.objects.filter(verified=False)
-#         serializer = StudentDataEntrySerializer(rejected_students, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
-
-#     def post(self, request):
-#         """Verify a rejected student (set verified=True) by roll_no."""
-#         roll_no = request.data.get('roll_no')
-
-#         try:
-#             student = StudentDataEntry.objects.get(roll_no=roll_no, verified=False)
-#             student.verified = True
-#             # If we have a rejection_reason field, clear it
-#             # student.rejection_reason = None
-#             student.save()
-#             return Response({"message": "Student verified successfully."}, status=status.HTTP_200_OK)
-#         except StudentDataEntry.DoesNotExist:
-#             return Response({"error": "Student not found or not rejected."}, status=status.HTTP_404_NOT_FOUND)
-
-# class StudentDetailView(APIView):
-#     """Handles retrieving detailed information for a specific student."""
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated, IsManager]
-
-#     def get(self, request, roll_no):
-#         """Return detailed information for a specific student."""
-#         try:
-#             student = StudentDataEntry.objects.get(roll_no=roll_no)
-#             serializer = StudentDetailSerializer(student)
-#             return Response(serializer.data, status=status.HTTP_200_OK)
-#         except StudentDataEntry.DoesNotExist:
-#             return Response({"error": "Student not found."}, status=status.HTTP_404_NOT_FOUND)
-
-# class StudentsByYearView(APIView):
-#     """Handles listing students filtered by year."""
-#     authentication_classes = [JWTAuthentication]
-#     permission_classes = [IsAuthenticated, IsManager]
-
-#     def get(self, request, year):
-#         """Return students filtered by year (class_name)."""
-#         if year not in dict(StudentDataEntry.CLASS_CHOICES).keys():
-#             return Response({"error": "Invalid year."}, status=status.HTTP_400_BAD_REQUEST)
-            
-#         students = StudentDataEntry.objects.filter(class_name=year)
-#         serializer = StudentDataEntrySerializer(students, many=True)
-#         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class PendingStudentsView(APIView):
     permission_classes = [IsAuthenticated, IsManager]
@@ -635,7 +411,6 @@ class StudentsView(APIView):
 
 
 
-from django.db.models import Q
 
 class GetStudentsView(APIView):
     permission_classes = [IsAuthenticated, IsManager]

@@ -161,7 +161,7 @@ export default function AuthModal({ isLogin, setIsLogin, onClose }: AuthModalPro
       }else if(userData.user_type==='manager'){
         router.push("/manager");
       }else{
-        router.push("/landing");
+        router.push("/student");
       }
     } catch (error: any) {
       console.error("Authentication error:", error);

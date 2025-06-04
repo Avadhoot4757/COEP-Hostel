@@ -73,7 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       console.log("Not a student or no class_name, redirecting to /landing");
     }
-    return "/landing";
+    return "/student";
   };
 
   const login = async (userData: User, token?: string) => {
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    const protectedRoutes = ["/applicationform", "/rectorHome", "/landing"];
+    const protectedRoutes = ["/applicationform", "/rectorHome", "/student"];
     const isProtectedRoute = protectedRoutes.some((route) =>
       window.location.pathname.startsWith(route)
     );

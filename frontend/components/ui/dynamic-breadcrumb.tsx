@@ -33,7 +33,7 @@ export function DynamicBreadcrumb({ managementItems }: DynamicBreadcrumbProps) {
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem className="hidden md:block">
-          <BreadcrumbLink href="/managerHome">Hostel Management</BreadcrumbLink>
+          <BreadcrumbLink href="/manager">Hostel Management</BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator className="hidden md:block" />
         <BreadcrumbItem>
