@@ -30,11 +30,11 @@ interface Student {
   gender: string
   class_name: string
   branch: {
-    name: string
+    branch: string
   }
   blood_group: string
   admission_category: {
-    name: string
+    admission_category: string
   }
   caste: {
     name: string
@@ -198,7 +198,7 @@ export default function StudentDetailPage() {
         <AlertTriangle className="h-12 w-12 text-yellow-500 mb-4" />
         <h2 className="text-2xl font-bold mb-2">Student Not Found</h2>
         <p className="text-gray-500 mb-6">The student with roll number {rollNo} could not be found.</p>
-        <Button onClick={() => router.push("/managerHome")}>Back to Student List</Button>
+        <Button onClick={() => router.back()}>Back to Student List</Button>
       </div>
     )
   }
@@ -207,7 +207,7 @@ export default function StudentDetailPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={() => router.push("/managerHome")}>
+          <Button variant="outline" onClick={() => router.back()}>
             Back to List
           </Button>
           <h1 className="text-2xl font-bold">Student Details</h1>
@@ -253,7 +253,7 @@ export default function StudentDetailPage() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-500">Year & Branch</p>
               <p>
-                {getYearLabel(student.class_name)} - {student.branch?.name}
+                {getYearLabel(student.class_name)} - {student.branch?.branch}
               </p>
             </div>
 
@@ -265,7 +265,7 @@ export default function StudentDetailPage() {
             <div className="space-y-1">
               <p className="text-sm font-medium text-gray-500">Category</p>
               <p>
-                {student.admission_category.name} ({student.caste.name})
+                {student.admission_category.admission_category} ({student.caste.name})
               </p>
               {student.creamy_layer && <Badge variant="outline">Creamy Layer</Badge>}
             </div>
@@ -424,7 +424,7 @@ export default function StudentDetailPage() {
             </Tabs>
           </CardContent>
           <CardFooter className="flex justify-between border-t pt-6">
-            <Button variant="outline" onClick={() => router.push("/managerHome")}>
+            <Button variant="outline" onClick={() => router.back()}>
               Back to List
             </Button>
             <div className="space-x-2">
