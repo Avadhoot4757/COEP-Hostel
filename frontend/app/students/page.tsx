@@ -78,6 +78,12 @@ export default function StudentsPage() {
       // alert(response.data.message);
       const updatedResponse = await api.get("/allot/student-available/");
       setStudents(updatedResponse.data);
+      toast({
+        title: "Invite Sent",
+        description: response.data.message,
+        variant: "success",
+        duration: 3000,
+      });
     } catch (error: any) {
       console.error("Error sending invite:", error);
       toast({

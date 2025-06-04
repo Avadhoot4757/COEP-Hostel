@@ -20,7 +20,7 @@ function App() {
   const [selectedYear, setSelectedYear] = useState<YearOption>('FY');
   
   const initialPhases: RegistrationPhase[] = [
-    { name: "Registration", startDate: "", startTime: "", endDate: "", endTime: "" }
+    { name: "Room preference", startDate: "", startTime: "", endDate: "", endTime: "" }
   ];
   
   const [phases, setPhases] = useState<RegistrationPhase[]>(initialPhases);
@@ -51,8 +51,8 @@ function App() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="p-6">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold">Open Registration</h1>
-            <p className="text-gray-600">Set registration schedule by student year</p>
+            <h1 className="text-2xl font-bold">Room preference period</h1>
+            <p className="text-gray-600">Set room preference period schedule by student year</p>
           </div>
           
           <div className="bg-white rounded-lg shadow-md p-6">
