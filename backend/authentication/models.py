@@ -147,7 +147,7 @@ class StudentDataEntry(models.Model):
     verified = models.BooleanField(null=True, default=None)
     selected = models.BooleanField(default=False)  # New field to track selection
     last_selection_year = models.CharField(max_length=10, choices=CLASS_CHOICES, null=True, blank=True)  # Tracks the year of last selection
-
+    is_manually_modified = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.first_name} {self.last_name or ''} ({self.roll_no})"
 
