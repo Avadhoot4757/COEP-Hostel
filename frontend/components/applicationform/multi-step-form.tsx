@@ -574,8 +574,8 @@ const MultiStepForm = () => {
                         }}
                         defaultValue={watch("entrance_exam")}
                       >
-                        <SelectTrigger className="bg-white text-black border border-gray-300">
-                          ConstanceValue placeholder="Select Entrance Exam" />
+                        <SelectTrigger  className="bg-white text-black border border-gray-300">
+                          <SelectValue placeholder="Select Entrance Exam" />
                         </SelectTrigger>
                         <SelectContent className="bg-white text-black border border-gray-300">
                           <SelectItem
@@ -849,29 +849,31 @@ const MultiStepForm = () => {
                       </div>
                     )}
 
-                    <div className="space-y-2">
-                      <Label className="text-gray-700" htmlFor="backlogs">
-                        Number of Backlogs
-                      </Label>
-                      <Input
-                        id="backlogs"
-                        type="number"
-                        placeholder="Enter number of backlogs"
-                        className="bg-white text-black border border-gray-300"
-                        {...register("backlogs", {
-                          required: "Number of backlogs is required",
-                          min: {
-                            value: 0,
-                            message: "Backlogs cannot be negative",
-                          },
-                        })}
-                      />
-                      {errors.backlogs && (
-                        <p className="text-sm text-red-500">
-                          {errors.backlogs.message}
-                        </p>
-                      )}
-                    </div>
+                    {className !== "fy" && (
+                      <div className="space-y-2">
+                        <Label className="text-gray-700" htmlFor="backlogs">
+                          Number of Backlogs
+                        </Label>
+                        <Input
+                          id="backlogs"
+                          type="number"
+                          placeholder="Enter number of backlogs"
+                          className="bg-white text-black border border-gray-300"
+                          {...register("backlogs", {
+                            required: className !== "fy" ? "Number of backlogs is required" : false,
+                            min: {
+                              value: 0,
+                              message: "Backlogs cannot be negative",
+                            },
+                          })}
+                        />
+                        {errors.backlogs && (
+                          <p className="text-sm text-red-500">
+                            {errors.backlogs.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {watch("caste") === "EWS" && (
@@ -1032,7 +1034,7 @@ const MultiStepForm = () => {
                       Belongs to Person with Disability Candidate
                     </Label>
                     <RadioGroup
-                      onValueChange={(value) =>  {setValue("pwd", value); trigger("pwd");}} defaultValue={"no"}>
+                      onValueChange={(value) =>  {setValue("pwd", value); trigger("pwd");}} defaultValue={watch("pwd")}>
                       <div className="flex space-x-4">
                         <div className="flex text-black items-center space-x-2">
                           <RadioGroupItem value="yes" id="pwd-yes" />
