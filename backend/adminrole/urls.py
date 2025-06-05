@@ -23,7 +23,10 @@ urlpatterns = [
     path("allot-branch-ranks/", AllotBranchRanksView.as_view(), name="allot-branch-ranks"),
     path('select-students/', SelectStudentsView.as_view(), name='select-students'),
     path('get-students/', GetStudentsView.as_view(), name='get-students'),
+    path('get-branches/', GetBranchesView.as_view(), name='get-branches'),
     path('select-student/', SelectStudentView.as_view(), name='select-student'),
     path('remove-student/', RemoveStudentView.as_view(), name='remove-student'),
     path('open-registration/', OpenRegistrationView.as_view(), name='open-registration'),
+    
+    path('exp_stu/',exp_students.as_view(), name='exp_stu'),
 ]

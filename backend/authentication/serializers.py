@@ -162,3 +162,15 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         if data['new_password'] != data['confirm_password']:
             raise serializers.ValidationError({"password": "Passwords do not match!"})
         return data
+
+class StudentDataVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StudentDataVerification
+        fields = '__all__'
+
+    def create(self, validated_data):
+        if isinstance(validated_data, list):
+            return StudentDataVerification.objects.bulk_create(
+                [StudentDataVerification(**item) for item in validated_data]
+            )
+        return super().create(validated_data)
