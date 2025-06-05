@@ -12,11 +12,12 @@ export function ManagerNavbar() {
   const { logout } = useAuth()
 
   const navItems = [
-    { name: "Seat Matrix", href: "/managerHome/seat-matrix", icon: <Briefcase className="h-5 w-5" /> },
+    { name: "Seat Matrix", href: "/manager/seat-matrix", icon: <Briefcase className="h-5 w-5" /> },
     { name: "Dashboard", href: "/dashboard", icon: <Home className="h-5 w-5" /> },
     { name: "Students", href: "/manager", icon: <Users className="h-5 w-5" /> },
     { name: "Wardens", href: "/wardens", icon: <Shield className="h-5 w-5" /> },
     { name: "BVC", href: "/bvc", icon: <Shield className="h-5 w-5" /> },
+    { name: "View Verified Students", href: "/manager/view-verified-students", icon: <Users className="h-5 w-5" /> },
   ]
 
   return (
@@ -25,7 +26,7 @@ export function ManagerNavbar() {
         <div className="flex justify-between h-20">
           <div className="flex">
             <div className="flex-shrink-0 flex items-center">
-              <Link href="/managerHome" className="font-bold text-xl">
+              <Link href="/manager" className="font-bold text-xl">
                 Hostel Allocation System
               </Link>
             </div>

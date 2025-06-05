@@ -6,11 +6,11 @@ export const particlesConfig = {
       },
       move: {
         enable: true,
-        direction: "top",
+        direction: "top" as const,
         random: true,
         speed: 3,
         straight: false,
-        outMode: "out", 
+        outMode: "out" as const, 
         bounce: false,
         attract: {
           enable: false,

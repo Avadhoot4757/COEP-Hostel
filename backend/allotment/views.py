@@ -1,12 +1,13 @@
 from django.contrib.auth import get_user_model
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from authentication.permissions import IsStudent
 from .models import *
 from adminrole.models import *
 from .serializers import *
+from django.http import JsonResponse
 
 User = get_user_model()
 
@@ -382,3 +383,18 @@ class PreferenceView(APIView):
             return Response({"error": "One or more rooms are invalid or do not match the block capacity"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class BlockViewSet(viewsets.ModelViewSet):
+    #permission_classes = [IsAuthenticated, IsStaffUser]
+    queryset = Block.objects.all()
+    serializer_class = BlockSerializer
+
+class FloorViewSet(viewsets.ModelViewSet):
+#    permission_classes = [IsAuthenticated, IsStaffUser]
+    queryset = Floor.objects.all()
+    serializer_class = FloorSerializer
+
+class RoomViewSet(viewsets.ModelViewSet):
+#    permission_classes = [IsAuthenticated, IsStaffUser]
+    queryset = Room.objects.all()
+    serializer_class = RoomSerializer       

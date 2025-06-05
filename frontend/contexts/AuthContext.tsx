@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
+import { toast } from "@/components/ui/use-toast";
 
 interface User {
   username: string;
@@ -33,11 +34,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   const [isLoggedOut, setIsLoggedOut] = useState(false);
   const router = useRouter();
+  
 
   const getRedirectPath = async (user: User): Promise<string> => {
     console.log("getRedirectPath called with user:", user); // Debug
     if(user.user_type === "manager") {
-      return "/managerHome";
+      return "/manager";
     }
     if (user.user_type === "rector") {
       return "/rectorHome";
@@ -71,7 +73,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } else {
       console.log("Not a student or no class_name, redirecting to /landing");
     }
-    return "/landing";
+    return "/student";
   };
 
   const login = async (userData: User, token?: string) => {
@@ -95,7 +97,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setHasAttemptedLogin(false);
       setIsLoggedOut(true);
       setLoading(false);
-      alert("Logout successful!");
+      // alert("Logout successful!");
+      toast({
+        title: "Logout successful",
+        description: "You have been logged out of your account",
+        variant: "success",
+        duration: 3000,
+      });
       router.push("/");
     }
   };
@@ -117,7 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    const protectedRoutes = ["/applicationform", "/rectorHome", "/landing"];
+    const protectedRoutes = ["/applicationform", "/rectorHome", "/student"];
     const isProtectedRoute = protectedRoutes.some((route) =>
       window.location.pathname.startsWith(route)
     );
