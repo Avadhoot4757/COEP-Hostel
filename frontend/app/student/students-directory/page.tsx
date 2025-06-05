@@ -35,47 +35,91 @@ interface Student {
   branch: string;
 }
 
+interface Branch {
+  branch: string;
+  year: string;
+  seat_allocation_weight: string;
+}
+
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [search, setSearch] = useState("");
   const [branchFilter, setBranchFilter] = useState("all-branches");
-  const [loading, setLoading] = useState(true); // Added loading state
-  const { isAuthenticated, loading: authLoading, checkAuth } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const { isAuthenticated, loading: authLoading, user, checkAuth } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
+    console.log("useEffect triggered:", {
+      authLoading,
+      isAuthenticated,
+      user: user ? { ...user, class_name: user.class_name } : null,
+    });
+
     const verifyAuth = async () => {
+      console.log("Verifying auth...");
       const isValid = await checkAuth();
+      console.log("Auth verification result:", isValid);
       if (!isValid) {
+        console.log("Redirecting to login...");
         router.push("/?auth=login");
       }
     };
 
-    if (!authLoading && !isAuthenticated) {
-      verifyAuth();
-    } else if (isAuthenticated) {
-      const fetchStudents = async () => {
-        try {
-          setLoading(true);
-          const response = await api.get("/allot/student-available/");
-          setStudents(response.data);
-        } catch (error) {
-          console.error("Error fetching students:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        console.log("Fetching students...");
+        // Fetch students
+        const studentsResponse = await api.get("/allot/student-available/");
+        console.log("Students fetched:", studentsResponse.data);
+        setStudents(studentsResponse.data);
 
-      fetchStudents();
+        // Fetch branches based on user's class_name
+        if (user?.class_name) {
+          console.log(`Fetching branches for class_name: ${user.class_name}`);
+          const branchesResponse = await api.get(`/auth/branches/?year=${user.class_name}`);
+          console.log("Branches fetched:", branchesResponse.data);
+          setBranches(branchesResponse.data);
+        } else {
+          console.warn("No class_name found in user object");
+          toast({
+            title: "Warning",
+            description: "Unable to fetch branches: No class year specified",
+            variant: "destructive",
+            duration: 3000,
+          });
+        }
+      } catch (error: any) {
+        console.error("Error fetching data:", error);
+        toast({
+          title: "Error",
+          description: error.response?.data?.error || "Failed to fetch students or branches",
+          variant: "destructive",
+          duration: 3000,
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (authLoading) {
+      console.log("Auth still loading, waiting...");
+    } else if (!isAuthenticated) {
+      console.log("Not authenticated, verifying auth...");
+      verifyAuth();
+    } else {
+      console.log("Authenticated, fetching data...");
+      fetchData();
     }
-  }, [authLoading, isAuthenticated, checkAuth, router]);
+  }, [authLoading, isAuthenticated, checkAuth, router, user]);
 
   const handleInvite = async (receiverId: number) => {
     try {
       const response = await api.post("/allot/student-available/", {
         receiver_id: receiverId,
       });
-      // alert(response.data.message);
       const updatedResponse = await api.get("/allot/student-available/");
       setStudents(updatedResponse.data);
       toast({
@@ -85,13 +129,12 @@ export default function StudentsPage() {
         duration: 3000,
       });
     } catch (error: any) {
-      // console.error("Error sending invite:", error);
       toast({
         title: "Error",
         description: error.response?.data?.error || "Failed to send invite",
         variant: "destructive",
         duration: 3000,
-      })
+      });
     }
   };
 
@@ -104,10 +147,7 @@ export default function StudentsPage() {
       fullName.toLowerCase().includes(search.toLowerCase());
     const matchesBranch =
       branchFilter === "all-branches" ||
-      (branchFilter === "cs" && student.branch === "Computer Science") ||
-      (branchFilter === "me" && student.branch === "Mechanical Engineering") ||
-      (branchFilter === "ee" && student.branch === "Electrical Engineering") ||
-      (branchFilter === "ce" && student.branch === "Civil Engineering");
+      student.branch.toLowerCase() === branchFilter.toLowerCase();
     return matchesSearch && matchesBranch;
   });
 
@@ -143,10 +183,11 @@ export default function StudentsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all-branches">All Branches</SelectItem>
-            <SelectItem value="cs">Computer Science</SelectItem>
-            <SelectItem value="me">Mechanical Engineering</SelectItem>
-            <SelectItem value="ee">Electrical Engineering</SelectItem>
-            <SelectItem value="ce">Civil Engineering</SelectItem>
+            {branches.map((branch) => (
+              <SelectItem key={branch.branch} value={branch.branch}>
+                {branch.branch}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

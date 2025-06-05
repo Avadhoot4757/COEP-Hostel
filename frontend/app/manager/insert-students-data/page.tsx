@@ -217,7 +217,7 @@ const StudentUploadPage: React.FC = () => {
               <div className="space-y-2 text-blue-800">
                 <p><strong>Required Columns (exact names):</strong></p>
                 <ul className="list-disc list-inside ml-4 space-y-1">
-                  <li><code className="bg-blue-100 px-2 py-1 rounded">roll_no</code> - Student roll number</li>
+                  <li><code className="bg-blue-100 px-2 py-1 rounded">roll_no</code> - MIS or JEE/CET applicant number</li>
                   <li><code className="bg-blue-100 px-2 py-1 rounded">email</code> - Student email address</li>
                   <li><code className="bg-blue-100 px-2 py-1 rounded">class_name</code> - Class year (fy, sy, ty, btech)</li>
                 </ul>

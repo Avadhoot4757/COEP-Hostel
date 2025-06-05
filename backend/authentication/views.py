@@ -58,7 +58,7 @@ class CurrentUser(APIView):
             'id': user.id,
             'username': user.username,
             'email': user.email,
-            'year': user.class_name,
+            'class_name': user.class_name
         })
 
 class AdmissionCategoryView(APIView):

@@ -169,8 +169,27 @@ class StudentDataVerificationSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def create(self, validated_data):
+        # If bulk input (list)
         if isinstance(validated_data, list):
-            return StudentDataVerification.objects.bulk_create(
-                [StudentDataVerification(**item) for item in validated_data]
+            instances = []
+            for item in validated_data:
+                obj, _ = StudentDataVerification.objects.update_or_create(
+                    roll_no=item['roll_no'],
+                    defaults={
+                        'email': item['email'],
+                        'class_name': item['class_name']
+                    }
+                )
+                instances.append(obj)
+            return instances
+        else:
+            # Single entry
+            obj, _ = StudentDataVerification.objects.update_or_create(
+                roll_no=validated_data['roll_no'],
+                defaults={
+                    'email': validated_data['email'],
+                    'class_name': validated_data['class_name']
+                }
             )
-        return super().create(validated_data)
+            return obj
+
