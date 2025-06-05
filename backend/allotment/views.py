@@ -8,6 +8,7 @@ from .models import *
 from adminrole.models import *
 from .serializers import *
 from django.http import JsonResponse
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -84,12 +85,27 @@ class AvailableStudentsView(APIView):
                 class_name=student_data.class_name
             ).values_list("members__id", flat=True)
 
-            # Filter available students by user_type, class_name, gender
+            # Get IDs of users with pending RoomInvite (sent or received by request.user)
+            pending_invite_users = RoomInvite.objects.filter(
+                Q(sender=request.user) | Q(receiver=request.user)
+            ).values_list('sender__id', 'receiver__id').distinct()
+
+            # Combine sender and receiver IDs from pending invites
+            pending_invite_user_ids = set()
+            for sender_id, receiver_id in pending_invite_users:
+                pending_invite_user_ids.add(sender_id)
+                pending_invite_user_ids.add(receiver_id)
+
+            # Filter available students by user_type, class_name, gender, excluding occupied and pending invite users
             available_students = User.objects.filter(
                 user_type="student",
                 data_entry__class_name=student_data.class_name,
                 data_entry__gender=student_data.gender
-            ).exclude(id__in=occupied_users).exclude(id=request.user.id)
+            ).exclude(
+                id__in=occupied_users
+            ).exclude(
+                id__in=pending_invite_user_ids
+            ).exclude(id=request.user.id)
 
             # Serialize the results
             serializer = AvailableStudentSerializer(

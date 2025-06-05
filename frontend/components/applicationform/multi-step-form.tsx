@@ -83,16 +83,28 @@ const MultiStepForm = () => {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isFetching, setIsFetching] = useState(true); // New state for fetch loading
 
+  const caste = watch("caste", "");
+  const className = user?.class_name;
+  
+  // Debug auth state
   useEffect(() => {
     console.log("Apply page auth:", { authLoading, isAuthenticated, user });
+    if (!authLoading && !isAuthenticated) {
+    console.log("Redirecting to login from /apply");
+    router.push("/?auth=login");
+    return ;
+  }
+    
   }, [authLoading, isAuthenticated, user]);
 
   // Set roll_no
   useEffect(() => {
-    if (user?.username) {
+  
+    if (!authLoading && user?.username) {
       setValue("roll_no", user.username, { shouldValidate: true });
+      setValue("class_name", user?.class_name, { shouldValidate: true });
     }
-  }, [user, setValue]);
+  }, [user, authLoading, setValue]);
 
   // Fetch data
   useEffect(() => {
@@ -108,11 +120,13 @@ const MultiStepForm = () => {
           setIsFetching(false);
           return;
         }
-
+        console.log(user);
+        const studying_year = user?.class_name;
+        //const studying_year = "fy";
         const [branchesRes, categoriesRes, castesRes] = await Promise.all([
-          fetch("http://localhost:8000/auth/api/branches/"),
-          fetch("http://localhost:8000/auth/api/admissioncategories/"),
-          fetch("http://localhost:8000/auth/api/castes/"),
+          api.get(`/auth/branches/?year=${studying_year}`),
+          api.get("/auth/admission-categories/"),
+          api.get(`/auth/castes/?year=${studying_year}`),
         ]);
 
         setBranches(branchesRes.data);
@@ -309,6 +323,7 @@ const MultiStepForm = () => {
         "parent_occupation",
         "annual_income",
         "permanent_address",
+        "address_proof",  
         "local_guardian_name",
         "local_guardian_contact",
         "local_guardian_address",
@@ -349,32 +364,44 @@ const MultiStepForm = () => {
             ></div>
           </div>
         </div>
-        <FormProvider {...method}>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <CardContent className="p-6 bg-white space-y-4">
-          <Alert className="bg-amber-50 border-amber-200">
-                  <AlertCircle className="!text-amber-600 h-4 w-4"/>
-                  <AlertDescription className="text-amber-800">
-                    Please ensure all documents are in PDF, JPG, or PNG format
-                  </AlertDescription>
-          </Alert>
-            {/* Step 1: Basic Details */}
-            {step === 1 && (
-              <div className="space-y-4">
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="first_name">
-                      First Name
-                    </Label>
-                    <Input
-                      id="first_name"
-                      placeholder="Enter your first name"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("first_name", { required: "First name is required" })}
-                    />
-                    {errors.first_name && <p className="text-sm text-red-500">{errors.first_name.message}</p>}
-                  </div>
+
+        <FormProvider {...methods}>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <CardContent className="p-6 bg-white space-y-4">
+              <Alert className="bg-amber-50 border-amber-200">
+                <AlertCircle className="!text-amber-600 h-4 w-4" />
+                <AlertDescription className="text-amber-800">
+                  Please ensure all documents are in PDF, JPG, or PNG format
+                </AlertDescription>
+              </Alert>
+
+              {/* Step 1: Basic Details */}
+              {step === 1 && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="first_name">
+                        First Name
+                      </Label>
+                      <Input
+                        id="first_name"
+                        placeholder="Enter your first name"
+                        className="bg-white text-black border border-gray-300"
+                        {...register("first_name", {
+                          required: "First name is required",
+                        })}
+                        onChange={(e) => {
+                          setValue("first_name", e.target.value.toUpperCase(), {
+                            shouldValidate: true,
+                          });
+                        }}
+                      />
+                      {errors.first_name && (
+                        <p className="text-sm text-red-500">
+                          {errors.first_name.message}
+                        </p>
+                      )}
+                    </div>
 
                     <div className="space-y-2">
                       <Label className="text-gray-700" htmlFor="middle_name">
@@ -400,71 +427,82 @@ const MultiStepForm = () => {
                       )}
                     </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="last_name">
-                      Last Name
-                    </Label>
-                    <Input
-                      id="last_name"
-                      placeholder="Enter your last name"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("last_name", { required: "Last name is required" })}
-                    />
-                    {errors.last_name && <p className="text-sm text-red-500">{errors.last_name.message}</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="blood_group">
-                      Blood Group
-                    </Label>
-                    <Select onValueChange={(value) => {setValue("blood_group", value); trigger("blood_group");}} defaultValue={watch("blood_group")}>
-                      <SelectTrigger className="bg-white text-black border border-gray-300">
-                        <SelectValue placeholder="Select Blood Group" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white text-black border border-gray-300">
-                        <SelectItem className="hover:bg-gray-200" value="A+">A+</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="A-">A-</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="B+">B+</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="B-">B-</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="O+">O+</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="O-">O-</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="AB+">AB+</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="AB-">AB-</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input type="hidden" {...register("blood_group", { required: "Blood Group is required" })} />
-                    {errors.blood_group && <p className="text-sm text-red-500">{errors.blood_group.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                  <Label className="text-gray-700" >Gender</Label>
-                  <RadioGroup onValueChange={(value) => {setValue("gender", value); trigger("gender");}} defaultValue={watch("gender")}>
-                    <div className="flex space-x-4">
-                      <div className="flex text-black items-center space-x-2">
-                        <RadioGroupItem
-                
-                          value="male"
-                          id="gender-male"
-                        
-                        />
-                        <Label className="text-gray-700" htmlFor="gender-male">
-                          Male
-                        </Label>
-                      </div>
-                      <div className="flex text-black items-center space-x-2">
-                        <RadioGroupItem
-                          value="female"
-                          id="gender-female"
-                          
-                        />
-                        <Label className="text-gray-700" htmlFor="gender-female">
-                          Female
-                        </Label>
-                      </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="last_name">
+                        Last Name
+                      </Label>
+                      <Input
+                        id="last_name"
+                        placeholder="Enter your last name"
+                        className="bg-white text-black border border-gray-300"
+                        {...register("last_name")}
+                        onChange={(e) => {
+                          setValue("last_name", e.target.value.toUpperCase(), {
+                            shouldValidate: true,
+                          });
+                        }}
+                      />
+                      {errors.last_name && (
+                        <p className="text-sm text-red-500">
+                          {errors.last_name.message}
+                        </p>
+                      )}
                     </div>
-                  </RadioGroup>
-                  <Input type="hidden" {...register("gender", { required: "Gender is required" })} />
-                  {errors.gender && <p className="text-sm text-red-500">{errors.gender.message}</p>}
+
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="roll_no">
+                        Roll Number
+                      </Label>
+                      <Input
+                        id="roll_no"
+                        value={user?.username || ""}
+                        disabled
+                        className="bg-gray-100 text-black border border-gray-300 cursor-not-allowed"
+                        {...register("roll_no", {
+                          required: "Roll number is required",
+                        })}
+                      />
+                      {errors.roll_no && (
+                        <p className="text-sm text-red-500">
+                          {errors.roll_no.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-gray-700">Gender</Label>
+                    <RadioGroup
+                      onValueChange={(value) => {
+                        setValue("gender", value);
+                        trigger("gender");
+                      }}
+                      defaultValue={watch("gender")}
+                    >
+                      <div className="flex space-x-4">
+                        <div className="flex text-black items-center space-x-2">
+                          <RadioGroupItem value="male" id="gender-male" />
+                          <Label className="text-gray-700" htmlFor="gender-male">
+                            Male
+                          </Label>
+                        </div>
+                        <div className="flex text-black items-center space-x-2">
+                          <RadioGroupItem value="female" id="gender-female" />
+                          <Label className="text-gray-700" htmlFor="gender-female">
+                            Female
+                          </Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                    <Input
+                      type="hidden"
+                      {...register("gender", { required: "Gender is required" })}
+                    />
+                    {errors.gender && (
+                      <p className="text-sm text-red-500">
+                        {errors.gender.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -495,37 +533,26 @@ const MultiStepForm = () => {
                       <Label className="text-gray-700" htmlFor="class_name">
                         Class
                       </Label>
-                      <Select
-                        onValueChange={(value) => {
-                          setValue("class_name", value);
-                          trigger("class_name");
-                        }}
-                        defaultValue={watch("class_name")}
-                      >
-                        <SelectTrigger className="bg-white text-black border border-gray-300">
-                          <SelectValue placeholder="Select Class" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white text-black border border-gray-300">
-                          <SelectItem className="hover:bg-gray-200" value="fy">
-                            First Year
-                          </SelectItem>
-                          <SelectItem className="hover:bg-gray-200" value="sy">
-                            Second Year
-                          </SelectItem>
-                          <SelectItem className="hover:bg-gray-200" value="ty">
-                            Third Year
-                          </SelectItem>
-                          <SelectItem
-                            className="hover:bg-gray-200"
-                            value="btech"
-                          >
-                            Final Year
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        id="class_display"
+                        value={user?.class_name === "fy"
+                          ? "First Year"
+                          : user?.class_name === "sy"
+                          ? "Second Year"
+                          : user?.class_name === "ty"
+                          ? "Third Year"
+                          : user?.class_name === "btech"
+                          ? "B.Tech"
+                          : ""}
+                        disabled
+                        className="bg-gray-100 text-black border border-gray-300 cursor-not-allowed"
+                      />
                       <Input
                         type="hidden"
-                        {...register("class_name", { required: "Class is required" })}
+                        {...register("class_name", {
+                          required: "Class name is required",
+                        })}
+                        value={user?.class_name || ""}
                       />
                       {errors.class_name && (
                         <p className="text-sm text-red-500">
@@ -547,8 +574,8 @@ const MultiStepForm = () => {
                         }}
                         defaultValue={watch("entrance_exam")}
                       >
-                        <SelectTrigger className="bg-white text-black border border-gray-300">
-                          ConstanceValue placeholder="Select Entrance Exam" />
+                        <SelectTrigger  className="bg-white text-black border border-gray-300">
+                          <SelectValue placeholder="Select Entrance Exam" />
                         </SelectTrigger>
                         <SelectContent className="bg-white text-black border border-gray-300">
                           <SelectItem
@@ -620,236 +647,263 @@ const MultiStepForm = () => {
                       )}
                     </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="caste">
-                      Category
-                    </Label>
-                    <Select onValueChange={(value) => {setValue("caste", value); trigger("caste");}} defaultValue={watch("caste")}>
-                      <SelectTrigger className="bg-white text-black border border-gray-300">
-                        <SelectValue placeholder="Select Category" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white text-black border border-gray-300">
-                        <SelectItem className="hover:bg-gray-200" value="OPEN">OPEN</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="OBC">OBC</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="SBC">SBC</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="SC">SC</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="ST">ST</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="NT-B">NT-B</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="NT-C">NT-C</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="NT-D">NT-D</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="VJDT">VJDT</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="ECBC">ECBC</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="EWS">EWS</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input type="hidden" {...register("caste", { required: "Category is required" })} />
-                    {errors.caste && <p className="text-sm text-red-500">{errors.caste.message}</p>}
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="caste">
+                        Category
+                      </Label>
+                      <Select
+                        onValueChange={(value) => {
+                          setValue("caste", value);
+                          trigger("caste");
+                        }}
+                        defaultValue={watch("caste")}
+                      >
+                        <SelectTrigger className="bg-white text-black border border-gray-300">
+                          <SelectValue placeholder="Select Category" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white text-black border border-gray-300">
+                          {castes.map((c) => (
+                            <SelectItem
+                              key={c.caste}
+                              className="hover:bg-gray-200"
+                              value={c.caste}
+                            >
+                              {c.caste}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="hidden"
+                        {...register("caste", { required: "Category is required" })}
+                      />
+                      {errors.caste && (
+                        <p className="text-sm text-red-500">
+                          {errors.caste.message}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div> 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="mobile_number">
-                      Student Mobile Number
-                    </Label>
-                    <Input
-                      id="mobile_number"
-                      placeholder="10-digit mobile number"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("mobile_number", {
-                        required: "Mobile number is required",
-                        pattern: {
-                          value: /^[0-9]{10}$/,
-                          message: "Enter a valid 10-digit number",
-                        },
-                      })}
-                    />
-                    {errors.mobile_number && <p className="text-sm text-red-500">{errors.mobile_number.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="personal_mail">
-                      Personal Mail ID
-                    </Label>
-                    <Input
-                      id="personal_mail"
-                      placeholder="example@gmail.com"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("personal_mail", {
-                        required: "Personal Email is required",
-                        pattern: {
-                          value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z]+\.[a-zA-Z]{2,}$/,
-                          message: "Enter a valid email",
-                        },
-                      })}
-                    />
-                    {errors.personal_mail && <p className="text-sm text-red-500">{errors.personal_mail.message}</p>}
-                  </div>
-                </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="class_name">
-                      Class
-                    </Label>
-                    <Select onValueChange={(value) => {setValue("class_name", value);trigger("class_name");}} defaultValue={watch("class_name")}>
-                      <SelectTrigger className="bg-white text-black border border-gray-300">
-                        <SelectValue placeholder="Select Class" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white text-black border border-gray-300">
-                        <SelectItem className="hover:bg-gray-200" value="fy">First Year</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="sy">Second Year</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="ty">Third Year</SelectItem>
-                        <SelectItem className="hover:bg-gray-200" value="btech">Final Year</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input type="hidden" {...register("class_name", { required: "Class is required" })} />
-                    {errors.class_name && <p className="text-sm text-red-500">{errors.class_name.message}</p>}
-                  </div>
-                  
-                </div>
-                
-                {year && year !== "fy" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="universityEmail">
-                      University Mail ID
-                    </Label>
-                    <Input
-                      id="universityEmail"
-                      placeholder="example@coeptech.ac.in"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("universityEmail", {
-                        required: "University Email is required",
-                        pattern: {
-                          value: /^[a-zA-Z0-9._%+-]+@coeptech\.ac\.in$/,
-                          message: "Enter a valid COEP email",
-                        },
-                      })}
-                    />
-                    {errors.universityEmail && <p className="text-sm text-red-500">{errors.universityEmail.message}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="roll_no">
-                      MIS Number
-                    </Label>
-                    <Input
-                      id="roll_no"
-                      placeholder="9-digit MIS number"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("roll_no", {
-                        required: "MIS Number is required",
-                        pattern: {
-                          value: /^[0-9]{9}$/,
-                          message: "Enter a valid 9-digit MIS number",
-                        },
-                      })}
-                    />
-                    {errors.roll_no && <p className="text-sm text-red-500">{errors.roll_no.message}</p>}
-                  </div>
-            
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="cgpa">
-                      CGPA
-                    </Label>
-                    <Input
-                      id="cgpa"
-                      type="number"
-                      step="0.01"
-                      placeholder="Enter your CGPA"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("cgpa", {
-                        required: "CGPA is required",
-                        min: { value: 0, message: "CGPA cannot be negative" },
-                        max: { value: 10, message: "CGPA cannot be greater than 10" },
-                      })}
-                    />
-                    {errors.cgpa && <p className="text-sm text-red-500">{errors.cgpa.message}</p>}
-                  </div>
+                    {className !== "fy" && (
+                      <div className="space-y-2">
+                        <Label className="text-gray-700" htmlFor="college_mail">
+                          University Mail ID
+                        </Label>
+                        <Input
+                          id="college_mail"
+                          placeholder="example@coeptech.ac.in"
+                          className="bg-white text-black border border-gray-300"
+                          {...register("college_mail", {
+                            required:
+                              className !== "fy"
+                                ? "University Email is required"
+                                : false,
+                            pattern: {
+                              value: /^[a-zA-Z0-9._%+-]+@coeptech\.ac\.in$/,
+                              message: "Enter a valid COEP email",
+                            },
+                          })}
+                        />
+                        {errors.college_mail && (
+                          <p className="text-sm text-red-500">
+                            {errors.college_mail.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="backlogs">
-                      Number of Backlogs
-                    </Label>
-                    <Input
-                      id="backlogs"
-                      type="number"
-                      placeholder="Enter number of backlogs"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("backlogs", {
-                        required: "Number of backlogs is required",
-                        min: { value: 0, message: "Backlogs cannot be negative" },
-                      })}
-                    />
-                    {errors.backlogs && <p className="text-sm text-red-500">{errors.backlogs.message}</p>}
-                  </div>
-                
-                
-                </div>
-                )} 
-                {year && year === "fy" && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="roll_no">
-                      Roll Number
-                    </Label>
-                    <Input
-                      id="roll_no"
-                      placeholder="Enter your roll number"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("roll_no", {
-                        required: "MIS Number is required",
-                        
-                      })}
-                    />
-                    {errors.roll_no && <p className="text-sm text-red-500">{errors.roll_no.message}</p>}
-                  </div>
-            
-                  <div className="space-y-2">
-                    <Label className="text-gray-700" htmlFor="rank">
-                      Rank
-                    </Label>
-                    <Input
-                      id="rank"
-                      type="number"
-                      
-                      placeholder="Enter your Rank"
-                      className="bg-white text-black border border-gray-300"
-                      {...register("rank", {
-                        required: "Rank is required"
-                      })}
-                    />
-                    {errors.rank && <p className="text-sm text-red-500">{errors.rank.message}</p>}
-                  </div>   
-                  <FileUploadField name="admission_confirmation_letter" label="Admission confirmation letter" />
-                  <FileUploadField name="college_fee_receipt" label="College Fee receipt" />
-                </div>
-                )} 
-                {caste === "EWS" && (
-                  <FileUploadField name="ews_certificate" label="EWS Certificate" />
-                )}
-              </div>
-            )}
-
-            {/* caste-Specific Steps */}
-            {step > 1 && step < totalSteps && caste && (
-              <div>
-                {caste !== "OPEN" && caste !== "EWS" && step === 2 && (
-                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <FileUploadField name="caste_certificate" label="Caste Certificate" />
+                      <Label className="text-gray-700" htmlFor="personal_mail">
+                        Personal Mail ID
+                      </Label>
+                      <Input
+                        id="personal_mail"
+                        placeholder="example@gmail.com"
+                        className="bg-white text-black border border-gray-300"
+                        {...register("personal_mail", {
+                          required: "Personal Email is required",
+                          pattern: {
+                            value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z]+\.[a-zA-Z]{2,}$/,
+                            message: "Enter a valid email",
+                          },
+                        })}
+                      />
+                      {errors.personal_mail && (
+                        <p className="text-sm text-red-500">
+                          {errors.personal_mail.message}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-gray-700" htmlFor="blood_group">
+                        Blood Group
+                      </Label>
+                      <Select
+                        onValueChange={(value) => {
+                          setValue("blood_group", value);
+                          trigger("blood_group");
+                        }}
+                        defaultValue={watch("blood_group")}
+                      >
+                        <SelectTrigger className="bg-white text-black border border-gray-300">
+                          <SelectValue placeholder="Select Blood Group" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white text-black border border-gray-300">
+                          <SelectItem className="hover:bg-gray-200" value="A+">
+                            A+
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="A-">
+                            A-
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="B+">
+                            B+
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="B-">
+                            B-
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="O+">
+                            O+
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="O-">
+                            O-
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="AB+">
+                            AB+
+                          </SelectItem>
+                          <SelectItem className="hover:bg-gray-200" value="AB-">
+                            AB-
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="hidden"
+                        {...register("blood_group", {
+                          required: "Blood Group is required",
+                        })}
+                      />
+                      {errors.blood_group && (
+                        <p className="text-sm text-red-500">
+                          {errors.blood_group.message}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="space-y-2">
-                    <FileUploadField name="caste_validity_certificate" label="Caste Validity certificate / Tribe Validity certificate" />
-                    </div>
+                    {className === "fy" ? (
+                      <div className="space-y-2">
+                        <Label className="text-gray-700" htmlFor="rank">
+                          Entrance Exam Rank
+                        </Label>
+                        <Input
+                          id="rank"
+                          type="number"
+                          placeholder="Enter your rank"
+                          className="bg-white text-black border border-gray-300"
+                          {...register("rank", {
+                            required:
+                              className === "fy"
+                                ? "Rank is required for First Year"
+                                : false,
+                            min: { value: 1, message: "Rank must be positive" },
+                          })}
+                        />
+                        {errors.rank && (
+                          <p className="text-sm text-red-500">
+                            {errors.rank.message}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-gray-700" htmlFor="cgpa">
+                          CGPA
+                        </Label>
+                        <Input
+                          id="cgpa"
+                          type="number"
+                          step="0.01"
+                          placeholder="Enter your CGPA"
+                          className="bg-white text-black border border-gray-300"
+                          {...register("cgpa", {
+                            required:
+                              className !== "fy" ? "CGPA is required" : false,
+                            min: {
+                              value: 0,
+                              message: "CGPA cannot be negative",
+                            },
+                            max: {
+                              value: 10,
+                              message: "CGPA cannot be greater than 10",
+                            },
+                          })}
+                        />
+                        {errors.cgpa && (
+                          <p className="text-sm text-red-500">
+                            {errors.cgpa.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
-                    <div className="space-y-2">
-                      
-                      <FileUploadField name="income_certificate" label="Income certificate" />
-                    </div>
+                    {className !== "fy" && (
+                      <div className="space-y-2">
+                        <Label className="text-gray-700" htmlFor="backlogs">
+                          Number of Backlogs
+                        </Label>
+                        <Input
+                          id="backlogs"
+                          type="number"
+                          placeholder="Enter number of backlogs"
+                          className="bg-white text-black border border-gray-300"
+                          {...register("backlogs", {
+                            required: className !== "fy" ? "Number of backlogs is required" : false,
+                            min: {
+                              value: 0,
+                              message: "Backlogs cannot be negative",
+                            },
+                          })}
+                        />
+                        {errors.backlogs && (
+                          <p className="text-sm text-red-500">
+                            {errors.backlogs.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                    <div className="space-y-2">
+                  {watch("caste") === "EWS" && (
+                    <FileUploadField
+                      name="ews_certificate"
+                      label="EWS Certificate"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Caste-Specific Steps */}
+              {step > 1 && step < totalSteps && caste && (
+                <div>
+                  {caste !== "OPEN" && caste !== "EWS" && step === 2 && (
+                    <div className="space-y-4">
+                      <FileUploadField
+                        name="caste_certificate"
+                        label="Caste Certificate"
+                      />
+                      <FileUploadField
+                        name="caste_validity_certificate"
+                        label="Caste Validity certificate / Tribe Validity certificate"
+                      />
+                      <FileUploadField
+                        name="income_certificate"
+                        label="Income certificate"
+                      />
+
+                      <div className="space-y-2">
                       <Label className="text-gray-700">Belongs to Non-Creamy Layer Certificate</Label>
                       <RadioGroup
                         
@@ -885,11 +939,8 @@ const MultiStepForm = () => {
                       )}
                     </div>
 
-                      {watch("creamy_layer") && (
-                        <FileUploadField
-                          name="non_creamy_layer_certificate"
-                          label="Non-Creamy Layer Certificate (valid up to 31st March 2025)"
-                        />
+                      {watch("creamy_layer") === "yes" && (
+                        <FileUploadField name="non_creamy_layer_certificate" label="Non-Creamy Layer Certificate (valid up to 31st March 2025)"/>
                       )}
                     </div>
                   )}
@@ -983,13 +1034,7 @@ const MultiStepForm = () => {
                       Belongs to Person with Disability Candidate
                     </Label>
                     <RadioGroup
-                      onValueChange={(value) => {
-                        setValue("pwd", value === "yes", {
-                          shouldValidate: true,
-                        });
-                      }}
-                      defaultValue="no"
-                    >
+                      onValueChange={(value) =>  {setValue("pwd", value); trigger("pwd");}} defaultValue={watch("pwd")}>
                       <div className="flex space-x-4">
                         <div className="flex text-black items-center space-x-2">
                           <RadioGroupItem value="yes" id="pwd-yes" />
@@ -1005,20 +1050,16 @@ const MultiStepForm = () => {
                         </div>
                       </div>
                     </RadioGroup>
-                    {errors.pwd && (
-                      <p className="text-sm text-red-500">
-                        {errors.pwd.message}
-                      </p>
-                    )}
-                  </div>
+                    {errors.pwd && (  <p className="text-sm text-red-500"> {errors.pwd.message} </p>)}
+                  </div> 
 
                 {watch("pwd") === "yes" && (
                     <FileUploadField name="pwd_certificate" label="Person with Disability Candidate Certificate" />
                 )}
               </div>
-            )}
-            
+              )}
 
+              
               {/* Parents' Information */}
               {step === totalSteps - 1 && (
                 <div className="space-y-4">
@@ -1085,11 +1126,7 @@ const MultiStepForm = () => {
                           required: "Parent's occupation is required",
                         })}
                       />
-                      {errors.parent_occupation && (
-                        <p className="text-sm text-red-500">
-                          {errors.parent_occupation.message}
-                        </p>
-                      )}
+                      {errors.parent_occupation && (<p className="text-sm text-red-500">  {errors.parent_occupation.message}</p>)}
                     </div>
 
                     <div className="space-y-2">
@@ -1105,11 +1142,7 @@ const MultiStepForm = () => {
                           required: "Annual Income is required",
                         })}
                       />
-                      {errors.annual_income && (
-                        <p className="text-sm text-red-500">
-                          {errors.annual_income.message}
-                        </p>
-                      )}
+                      {errors.annual_income && ( <p className="text-sm text-red-500">   {errors.annual_income.message} </p>)}
                     </div>
                   </div>
 
@@ -1126,9 +1159,9 @@ const MultiStepForm = () => {
                   {errors.permanent_address && (
                     <p className="text-sm text-red-500">{errors.permanent_address.message}</p>
                   )}
-                  <div className="space-y-2">
-                  <FileUploadField name="address_proof" label="Address Proof" />
-                  </div>
+                  
+                    <FileUploadField name="address_proof" label="Address Proof" />
+                  
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -1184,13 +1217,25 @@ const MultiStepForm = () => {
                       })}
                     />
                     {errors.emergency_contact && (
-                      <p className="text-sm text-red-500">
-                        {errors.emergency_contact.message}
-                      </p>
+                      <p className="text-sm text-red-500">{errors.emergency_contact.message}</p>
                     )}
                   </div>
                 </div>
-              )}
+
+                <div className="space-y-2">
+                  <Label className="text-gray-700" htmlFor="local_guardian_address">
+                    Local address
+                  </Label>
+                  <Input
+                    id="local_guardian_address"
+                    placeholder="Enter local address"
+                    className="bg-white text-black border border-gray-300"
+                    {...register("local_guardian_address", { required: "Local address is required" })}
+                  />
+                  {errors.local_guardian_address && <p className="text-sm text-red-500">{errors.local_guardian_address.message}</p>}
+                </div>
+              </div>
+            )}
 
               {/* Documents */}
               {step === totalSteps && (

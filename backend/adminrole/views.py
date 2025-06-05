@@ -57,57 +57,164 @@ class SeatMatrixView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class OpenRegistrationView(APIView):
+class OpenRegistrationsView(APIView):
     permission_classes = [IsAuthenticated, IsManager]
 
     def get(self, request):
         year = request.query_params.get("year")
         if year:
-            dates = SelectDates.objects.filter(year=year.lower().replace(" ", "_"))
+            dates = SelectDates.objects.filter(
+                event="Open Registrations", year=year.lower().replace(" ", "_")
+            )
         else:
-            dates = SelectDates.objects.all()
+            dates = SelectDates.objects.filter(event="Open Registrations")
         serializer = SelectDatesSerializer(dates, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        data = request.data
-        if not isinstance(data, list):
+        # Delete completed events
+        now = timezone.now()
+        SelectDates.objects.filter(
+            event="Open Registrations",
+            end_date__lt=now,
+            end_date__isnull=False
+        ).delete()
+
+        data = request.data.copy()
+        data["event"] = "Open Registrations"
+        years = data.get("years", [])
+
+        if not years:
             return Response(
-                {"error": "Request data must be a list of events."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "At least one year is required"},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        required_events = {
-            "Registration",
-            "Student Data Verification",
-            "Result Declaration",
-            "Roommaking",
-            "Final Allotment",
-            "Verification",
-        }
-        provided_events = {item.get("event") for item in data}
-        if provided_events != required_events:
+        # Check for existing ongoing or upcoming events
+        existing_events = SelectDates.objects.filter(
+            event="Open Registrations",
+            year__in=[year.lower().replace(" ", "_") for year in years]
+        )
+        for event in existing_events:
+            is_ongoing = event.start_date <= now and (event.end_date is None or event.end_date >= now)
+            is_upcoming = event.start_date > now
+            if is_ongoing or is_upcoming:
+                status_str = "ongoing" if is_ongoing else "upcoming"
+                return Response(
+                    {"error": f"Cannot create new event: {status_str} Open Registrations event exists for year {event.year}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        serializer = SelectDatesSerializer(data=data, context={"request": request})
+        if not serializer.is_valid():
+            print("Serializer errors:", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response(
+            {"message": "Open Registrations dates saved successfully"},
+            status=status.HTTP_200_OK
+        )
+
+    def delete(self, request):
+        year = request.query_params.get("year")
+        if not year:
             return Response(
-                {"error": f"All events must be provided: {', '.join(required_events)}"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": "Year is required to delete an event"},
+                status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            year = request.data[0].get('year')
-            for event_data in data:
-                SelectDates.objects.create(
-                    year=year,
-                    event=event_data.get('event'),
-                    start_date=event_data.get('start_date'),
-                    end_date=event_data.get('end_date')
-                )
+            instance = SelectDates.objects.get(
+                event="Open Registrations", year=year.lower().replace(" ", "_")
+            )
+            instance.delete()
             return Response(
-                {"message": "Registration dates saved successfully"},
+                {"message": "Open Registrations event deleted successfully"},
                 status=status.HTTP_200_OK
             )
-        except Exception as e:
+        except SelectDates.DoesNotExist:
             return Response(
-                {"error": f"Failed to save dates: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": "No Open Registrations event found for the specified year"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+class OpenRoomPreferencesView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
+    def get(self, request):
+        year = request.query_params.get("year")
+        if year:
+            dates = SelectDates.objects.filter(
+                event="Open Room Preferences", year=year.lower().replace(" ", "_")
+            )
+        else:
+            dates = SelectDates.objects.filter(event="Open Room Preferences")
+        serializer = SelectDatesSerializer(dates, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        # Delete completed events
+        now = timezone.now()
+        SelectDates.objects.filter(
+            event="Open Room Preferences",
+            end_date__lt=now,
+            end_date__isnull=False
+        ).delete()
+
+        data = request.data.copy()
+        data["event"] = "Open Room Preferences"
+        years = data.get("years", [])
+
+        if not years:
+            return Response(
+                {"error": "At least one year is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check for existing ongoing or upcoming events
+        existing_events = SelectDates.objects.filter(
+            event="Open Room Preferences",
+            year__in=[year.lower().replace(" ", "_") for year in years]
+        )
+        for event in existing_events:
+            is_ongoing = event.start_date <= now and (event.end_date is None or event.end_date >= now)
+            is_upcoming = event.start_date > now
+            if is_ongoing or is_upcoming:
+                status_str = "ongoing" if is_ongoing else "upcoming"
+                return Response(
+                    {"error": f"Cannot create new event: {status_str} Open Room Preferences event exists for year {event.year}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+        serializer = SelectDatesSerializer(data=data, context={"request": request})
+        if not serializer.is_valid():
+            print("Serializer errors:", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response(
+            {"message": "Open Room Preferences dates saved successfully"},
+            status=status.HTTP_200_OK
+        )
+
+    def delete(self, request):
+        year = request.query_params.get("year")
+        if not year:
+            return Response(
+                {"error": "Year is required to delete an event"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            instance = SelectDates.objects.get(
+                event="Open Room Preferences", year=year.lower().replace(" ", "_")
+            )
+            instance.delete()
+            return Response(
+                {"message": "Open Room Preferences event deleted successfully"},
+                status=status.HTTP_200_OK
+            )
+        except SelectDates.DoesNotExist:
+            return Response(
+                {"error": "No Open Room Preferences event found for the specified year"},
+                status=status.HTTP_404_NOT_FOUND
             )
 
 class PendingStudentsView(APIView):
@@ -621,7 +728,7 @@ class exp_students(APIView):
             year = request.query_params.get('year', 'fy')
             gender = request.query_params.get('gender', 'male')
             category = request.query_params.get('category', 'all')
-            export_format = request.query_params.get('format', 'pdf')  # 'pdf' or 'excel'
+            export_format = request.query_params.get('exp_format', 'pdf')  # 'pdf' or 'excel'
 
             valid_years = [choice[0] for choice in StudentDataEntry.CLASS_CHOICES]
             if year not in valid_years:
@@ -779,7 +886,7 @@ class exp_students(APIView):
         workbook.save(buffer)
         buffer.seek(0)
         response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            content_type='application/vnd.openxml`format`s-officedocument.spreadsheetml.sheet'
         )
         response['Content-Disposition'] = f'attachment; filename="students_{year}_{gender}_{category}.xlsx"'
         response.write(buffer.getvalue())

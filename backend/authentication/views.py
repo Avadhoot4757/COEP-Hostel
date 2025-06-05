@@ -57,7 +57,8 @@ class CurrentUser(APIView):
         return Response({
             'id': user.id,
             'username': user.username,
-            'email': user.email
+            'email': user.email,
+            'class_name': user.class_name
         })
 
 class AdmissionCategoryView(APIView):
@@ -235,7 +236,7 @@ class StudentDataEntryView(APIView):
                 {"error": "You have already submitted an application form."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+        print(request.data)
         serializer = StudentDataEntrySerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()

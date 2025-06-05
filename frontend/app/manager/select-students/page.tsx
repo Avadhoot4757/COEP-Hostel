@@ -143,7 +143,7 @@ export default function ViewVerifiedStudentsPage() {
   const handleDownloadPDF = async () => {
     try {
       const response = await api.get(`/adminrole/exp_stu/`, {
-        params: { year: selectedYear, gender: selectedGender, category: selectedCategory, format: "pdf" },
+        params: { year: selectedYear, gender: selectedGender, category: selectedCategory, exp_format: "pdf" },
         responseType: "blob",
       })
       const url = window.URL.createObjectURL(new Blob([response.data]))
@@ -163,7 +163,7 @@ export default function ViewVerifiedStudentsPage() {
   const handleExportExcel = async () => {
     try {
       const response = await api.get(`/adminrole/export-students/`, {
-        params: { year: selectedYear, gender: selectedGender, category: selectedCategory, format: "excel" },
+        params: { year: selectedYear, gender: selectedGender, category: selectedCategory, exp_format: "excel" },
         responseType: "blob",
       })
       const url = window.URL.createObjectURL(new Blob([response.data]))
