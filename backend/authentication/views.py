@@ -57,7 +57,8 @@ class CurrentUser(APIView):
         return Response({
             'id': user.id,
             'username': user.username,
-            'email': user.email
+            'email': user.email,
+            'class_name': user.class_name
         })
 
 class AdmissionCategoryView(APIView):

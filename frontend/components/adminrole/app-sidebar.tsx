@@ -1,15 +1,26 @@
 "use client"
 
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
-import { Home, Bed, UserCheck, LogOut, Users, Calendar } from "lucide-react"
+import { Home, Bed, UserCheck, LogOut, Users, Calendar, Building2, FilePlus2} from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
+
 
 const managementItems = [
   {
     title: "Dashboard",
     url: "/manager",
     icon: Home,
+  },
+  {
+    title: "Insert Students Data",
+    url: "/manager/insert-students-data",
+    icon: FilePlus2,
+  },
+  {
+    title: "Hostel Blocks",
+    url: "/manager/blocks",
+    icon: Building2,
   },
   {
     title: "Open Registrations",
@@ -36,7 +47,9 @@ const managementItems = [
     url: "/manager/room-preference-period",
     icon: Calendar,
   },
-]
+];
+
+
 
 export function AppSidebar() {
   const { logout } = useAuth()

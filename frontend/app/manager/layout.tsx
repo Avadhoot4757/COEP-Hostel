@@ -16,6 +16,14 @@ export const metadata: Metadata = {
 
 export const managementItems = [
   {
+    title: "Insert Students Data",
+    url: "/manager/insert-students-data",
+  },
+  {
+    title: "Hostel Blocks",
+    url: "/manager/blocks",
+  },
+  {
     title: "Dashboard",
     url: "/manager",
   },
