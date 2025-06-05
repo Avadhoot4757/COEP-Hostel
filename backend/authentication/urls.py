@@ -20,5 +20,6 @@ urlpatterns = [
     path('castes/', CasteView.as_view(), name='castes'),
     path('castes/<str:pk>/', CasteView.as_view(), name='caste-detail'),
     path('apply/', StudentDataEntryView.as_view(), name='create-student'),
+    path('studentverification/', StudentDataVerificationView.as_view(), name='student-verification'),
 ]
 

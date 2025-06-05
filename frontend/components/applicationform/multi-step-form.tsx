@@ -84,7 +84,7 @@ const MultiStepForm = () => {
   const [isFetching, setIsFetching] = useState(true); // New state for fetch loading
 
   const caste = watch("caste", "");
-  const className = user?.year;
+  const className = user?.class_name;
   
   // Debug auth state
   useEffect(() => {
