@@ -238,7 +238,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <Button asChild size="sm">
-            <Link href="/invites">View Invites</Link>
+            <Link href="/student/invites">View Invites</Link>
           </Button>
         </Card>
         <Card className="p-6">
@@ -248,7 +248,7 @@ export default function DashboardPage() {
           </div>
           <div className="text-2xl font-bold mb-4">0/5</div>
           <Button asChild size="sm">
-            <Link href="/rooms">Set Preferences</Link>
+            <Link href="/student/room-preferences">Set Preferences</Link>
           </Button>
         </Card>
         <Card className="p-6">
@@ -330,7 +330,7 @@ export default function DashboardPage() {
           </div>
           {currentRoommates < maxRoommates && (
             <Button className="w-full mt-4" asChild>
-              <Link href="/students">Invite More Students</Link>
+              <Link href="/student/students-directory">Invite More Students</Link>
             </Button>
           )}
         </Card>

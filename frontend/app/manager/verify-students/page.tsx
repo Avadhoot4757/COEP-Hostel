@@ -18,14 +18,14 @@ interface Student {
   last_name?: string
   class_name: string
   branch: {
-    name: string
+    branch: string
   }
   verified: boolean | null
   caste: {
     name: string
   }
   admission_category: {
-    name: string
+    admission_category: string
   }
   gender: string
 }
@@ -290,7 +290,7 @@ export default function ManagerPage() {
                               </TableCell>
                               <TableCell>
                                 <span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                  {student.branch?.name}
+                                  {student.branch?.branch}
                                 </span>
                               </TableCell>
                               <TableCell>
@@ -300,7 +300,7 @@ export default function ManagerPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="text-sm">
-                                  <div className="font-medium">{student.admission_category.name}</div>
+                                  <div className="font-medium">{student.admission_category.admission_category }</div>
                                   <div className="text-gray-500">({student.caste.name})</div>
                                 </div>
                               </TableCell>

@@ -5,6 +5,7 @@ from authentication.models import *
 from .models import *
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+User = get_user_model()
 
 class StudentDataEntrySerializer(serializers.ModelSerializer):
     class Meta:
@@ -72,6 +73,7 @@ class StudentDetailSerializer(serializers.ModelSerializer):
                     
         return representation
 
+
 class SelectDatesSerializer(serializers.ModelSerializer):
     years = serializers.ListField(
         child=serializers.ChoiceField(choices=SelectDates.YEAR_CHOICES),
@@ -83,26 +85,20 @@ class SelectDatesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SelectDates
-        fields = ["event_id", "event", "start_date", "end_date", "years"]
-        read_only_fields = ["event_id"]
+        fields = ["event", "start_date", "end_date", "years"]
+        read_only_fields = []
 
     def validate(self, data):
         start_date = data.get("start_date")
         end_date = data.get("end_date")
-        event = data.get("event")
-        years = data.get("years")
         today = timezone.now()
 
         if not start_date:
-            raise serializers.ValidationError({"start_date": "Start date and time are required."})
-
-        requires_end_date = event in ["Registration", "Student Data Verification", "Roommaking", "Verification"]
-        if requires_end_date and not end_date:
-            raise serializers.ValidationError({"end_date": f"End date and time are required for {event}."})
+            raise serializers.ValidationError({"start_date": "Start date is required."})
 
         if end_date and end_date < start_date:
             raise serializers.ValidationError(
-                {"end_date": "End date and time must be on or after start date and time."}
+                {"end_date": "End date must be on or after start date."}
             )
 
         instance = self.instance
@@ -111,86 +107,28 @@ class SelectDatesSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"start_date": "Cannot edit dates for past or ongoing events."}
                 )
-            if set(years) != {instance.year}:
+            if set(data.get("years")) != {instance.year}:
                 raise serializers.ValidationError(
                     {"years": "Cannot change years for past or ongoing events."}
                 )
 
         if not instance and start_date < today:
             raise serializers.ValidationError(
-                {"start_date": "Start date and time must be in the future."}
+                {"start_date": "Start date must be in the future."}
             )
-
-        event_order = [
-            "Registration",
-            "Student Data Verification",
-            "Result Declaration",
-            "Roommaking",
-            "Final Allotment",
-            "Verification",
-        ]
-        current_idx = event_order.index(event)
-        request_data = self.context.get("request").data if self.context.get("request") else []
-
-        for item in request_data:
-            if item.get("event") == event:
-                continue
-            item_idx = event_order.index(item.get("event", ""))
-            item_start = item.get("start_date")
-            item_end = item.get("end_date")
-
-            if not (item_start and (item_end if event_order[item_idx] in ["Registration", "Student Data Verification", "Roommaking", "Verification"] else True)):
-                continue
-
-            try:
-                item_start_dt = timezone.datetime.fromisoformat(item_start.replace("Z", "+00:00"))
-                item_end_dt = timezone.datetime.fromisoformat(item_end.replace("Z", "+00:00")) if item_end else item_start_dt
-            except (ValueError, TypeError):
-                continue
-
-            if item_idx < current_idx and item_end_dt > start_date:
-                raise serializers.ValidationError(
-                    {
-                        "start_date": f"Start date for {event} must be on or after end date of {item['event']} ({item_end_dt})."
-                    }
-                )
-
-            if requires_end_date and item_idx > current_idx and end_date > item_start_dt:
-                raise serializers.ValidationError(
-                    {
-                        "end_date": f"End date for {event} must be on or before start date of {item['event']} ({item_start_dt})."
-                    }
-                )
 
         return data
 
     def create(self, validated_data):
         years = validated_data.pop("years")
-        event = validated_data["event"]
-        event_id_map = {
-            "Registration": 1,
-            "Student Data Verification": 2,
-            "Result Declaration": 3,
-            "Roommaking": 4,
-            "Final Allotment": 5,
-            "Verification": 6,
-        }
-        base_event_id = event_id_map[event]
-        year_offset = {
-            "fy": 0,
-            "sy": 10,
-            "ty": 20,
-            "btech": 30,
-        }
+        event = validated_data.get("event")  # This should now work since event is not read_only
         instances = []
 
         for year in years:
-            event_id = base_event_id + year_offset[year]
             instance, created = SelectDates.objects.update_or_create(
-                event_id=event_id,
+                event=event,
                 year=year,
                 defaults={
-                    "event": event,
                     "start_date": validated_data["start_date"],
                     "end_date": validated_data.get("end_date"),
                 },
@@ -200,16 +138,12 @@ class SelectDatesSerializer(serializers.ModelSerializer):
         return instances[0]
 
     def to_representation(self, instance):
-        """Ensure GET response matches expected format."""
         return {
-            "event_id": instance.event_id,
             "event": instance.event,
             "start_date": instance.start_date.isoformat(),
             "end_date": instance.end_date.isoformat() if instance.end_date else None,
             "year": instance.year,
         }
-
-User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

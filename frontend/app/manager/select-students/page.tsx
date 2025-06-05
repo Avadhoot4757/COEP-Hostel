@@ -9,17 +9,11 @@ interface Student {
   middle_name?: string
   last_name?: string
   class_name: string
-  branch: {
-    name: string
-  }
+  branch: { name: string }
   verified: boolean
   selected: boolean
-  caste: {
-    name: string
-  }
-  admission_category: {
-    name: string
-  }
+  caste: { name: string }
+  admission_category: { name: string }
   last_selection_year: string
 }
 
@@ -27,16 +21,19 @@ export default function ViewVerifiedStudentsPage() {
   const [selectedYear, setSelectedYear] = useState<string>("fy")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [selectedGender, setSelectedGender] = useState<string>("male")
+  const [selectedBranch, setSelectedBranch] = useState<string>("all")
+  const [branches, setBranches] = useState<string[]>([])
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([])
   const [nonSelectedStudents, setNonSelectedStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [currentNonSelectedPage, setCurrentNonSelectedPage] = useState<number>(1)
-  const [showToast, setShowToast] = useState(false)
-  const [toastMessage, setToastMessage] = useState("")
-  const [showRemoveDialog, setShowRemoveDialog] = useState(false)
+  const [showToast, setShowToast] = useState<boolean>(false)
+  const [toastMessage, setToastMessage] = useState<string>("")
+  const [showRemoveDialog, setShowRemoveDialog] = useState<boolean>(false)
   const [studentToRemove, setStudentToRemove] = useState<string>("")
-  const [hasAllocated, setHasAllocated] = useState<boolean>(false)  // Track if allocation has been done
+  const [hasAllocated, setHasAllocated] = useState<boolean>(false)
+  const [noSeatMatrix, setNoSeatMatrix] = useState<boolean>(false)
 
   const yearOptions = [
     { value: "fy", label: "First Year" },
@@ -53,7 +50,7 @@ export default function ViewVerifiedStudentsPage() {
   const categoryOptions = [
     { value: "all", label: "All Categories" },
     { value: "open", label: "Open" },
-    { value: "sc", label: "SC" },  
+    { value: "sc", label: "SC" },
     { value: "st", label: "ST" },
     { value: "obc", label: "OBC" },
     { value: "vjnt", label: "VJNT" },
@@ -69,8 +66,13 @@ export default function ViewVerifiedStudentsPage() {
   const studentsPerPage = 10
 
   useEffect(() => {
+    loadBranches()
     loadStudents()
-  }, [selectedYear, selectedCategory, selectedGender])
+  }, [selectedYear, selectedGender])
+
+  useEffect(() => {
+    loadStudents()
+  }, [selectedCategory, selectedBranch])
 
   useEffect(() => {
     if (showToast) {
@@ -84,17 +86,28 @@ export default function ViewVerifiedStudentsPage() {
     setShowToast(true)
   }
 
+  const loadBranches = async () => {
+    try {
+      const response = await api.get(`/adminrole/get-branches/`, {
+        params: { year: selectedYear, gender: selectedGender },
+      })
+      setBranches(response.data.branches)
+      setNoSeatMatrix(response.data.branches.length === 0)
+      setSelectedBranch("all")
+    } catch (error) {
+      console.error("Error fetching branches:", error)
+      setBranches([])
+      setNoSeatMatrix(true)
+      showToastMessage("Failed to load branches. Please try again.")
+    }
+  }
+
   const loadStudents = async () => {
     setLoading(true)
     try {
       const response = await api.get(`/adminrole/get-students/`, {
-        params: {
-          year: selectedYear,
-          gender: selectedGender,
-          category: selectedCategory,
-        },
+        params: { year: selectedYear, gender: selectedGender, category: selectedCategory, branch: selectedBranch },
       })
-
       const students = response.data.students
       setSelectedStudents(students.filter((s: Student) => s.selected))
       setNonSelectedStudents(students.filter((s: Student) => !s.selected))
@@ -112,7 +125,7 @@ export default function ViewVerifiedStudentsPage() {
   const handleAllotBranchRanks = async () => {
     setLoading(true)
     try {
-      const response = await api.post('/adminrole/allot-branch-ranks/', {
+      const response = await api.post("/adminrole/allot-branch-ranks/", {
         year: selectedYear,
         gender: selectedGender,
       })
@@ -127,8 +140,49 @@ export default function ViewVerifiedStudentsPage() {
     }
   }
 
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await api.get(`/adminrole/exp_stu/`, {
+        params: { year: selectedYear, gender: selectedGender, category: selectedCategory, exp_format: "pdf" },
+        responseType: "blob",
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", `students_${selectedYear}_${selectedGender}_${selectedCategory}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      showToastMessage("PDF downloaded successfully.")
+    } catch (error) {
+      console.error("Error downloading PDF:", error)
+      showToastMessage("Failed to download PDF. Please try again.")
+    }
+  }
+
+  const handleExportExcel = async () => {
+    try {
+      const response = await api.get(`/adminrole/export-students/`, {
+        params: { year: selectedYear, gender: selectedGender, category: selectedCategory, exp_format: "excel" },
+        responseType: "blob",
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement("a")
+      link.href = url
+      link.setAttribute("download", `students_${selectedYear}_${selectedGender}_${selectedCategory}.xlsx`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      showToastMessage("Excel file exported successfully.")
+    } catch (error) {
+      console.error("Error exporting Excel:", error)
+      showToastMessage("Failed to export Excel. Please try again.")
+    }
+  }
+
   const handleYearChange = (value: string) => {
     setSelectedYear(value)
+    setSelectedBranch("all")
   }
 
   const handleCategoryChange = (value: string) => {
@@ -137,6 +191,11 @@ export default function ViewVerifiedStudentsPage() {
 
   const handleGenderChange = (value: string) => {
     setSelectedGender(value)
+    setSelectedBranch("all")
+  }
+
+  const handleBranchChange = (value: string) => {
+    setSelectedBranch(value)
   }
 
   const handleRemoveStudent = async (rollNo: string) => {
@@ -150,7 +209,7 @@ export default function ViewVerifiedStudentsPage() {
       }
       setShowRemoveDialog(false)
       setStudentToRemove("")
-      setHasAllocated(false)  // Trigger re-allocation on next click
+      setHasAllocated(false)
     } catch (error) {
       console.error("Error removing student:", error)
       showToastMessage("Failed to remove student. Please try again.")
@@ -166,7 +225,7 @@ export default function ViewVerifiedStudentsPage() {
         setSelectedStudents((prev) => [...prev, { ...studentToSelect, selected: true }])
         showToastMessage(`Student with Roll No ${rollNo} has been added to selection.`)
       }
-      setHasAllocated(false)  // Trigger re-allocation on next click
+      setHasAllocated(false)
     } catch (error) {
       console.error("Error selecting student:", error)
       showToastMessage("Failed to select student. Please try again.")
@@ -200,43 +259,34 @@ export default function ViewVerifiedStudentsPage() {
           onClick={() => onPageChange(Math.max(1, currentPageNum - 1))}
           disabled={currentPageNum === 1}
           className={`px-3 py-2 text-sm border rounded-md ${
-            currentPageNum === 1
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
+            currentPageNum === 1 ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-50"
           }`}
         >
           Previous
         </button>
-
         {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
           let pageNum = i + 1
           if (totalPages > 5 && currentPageNum > 3) {
             pageNum = currentPageNum - 2 + i
             if (pageNum > totalPages) pageNum = totalPages - (4 - i)
           }
-
           return (
             <button
               key={i}
               onClick={() => onPageChange(pageNum)}
-              className={`px-3 py-2 text-sm border rounded-md cursor-pointer ${
-                pageNum === currentPageNum
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 hover:bg-gray-50"
+              className={`px-3 py-2 text-sm border rounded-md ${
+                pageNum === currentPageNum ? "bg-blue-600 text-white" : "bg-white text-gray-700 hover:bg-gray-50"
               }`}
             >
               {pageNum}
             </button>
           )
         })}
-
         <button
           onClick={() => onPageChange(Math.min(totalPages, currentPageNum + 1))}
           disabled={currentPageNum === totalPages}
           className={`px-3 py-2 text-sm border rounded-md ${
-            currentPageNum === totalPages
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-              : "bg-white text-gray-700 hover:bg-gray-50 cursor-pointer"
+            currentPageNum === totalPages ? "bg-gray-100 text-gray-400 cursor-not-allowed" : "bg-white text-gray-700 hover:bg-gray-50"
           }`}
         >
           Next
@@ -281,24 +331,49 @@ export default function ViewVerifiedStudentsPage() {
         </div>
       )}
 
+      {noSeatMatrix && (
+        <div className="fixed top-4 left-4 z-50 bg-yellow-600 text-white px-4 py-2 rounded-md shadow-lg">
+          No seat matrix found for {yearOptions.find((y) => y.value === selectedYear)?.label} -{" "}
+          {genderOptions.find((g) => g.value === selectedGender)?.label}. Please create a seat matrix to proceed.
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900">View Verified Students</h1>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-500">Academic Year 2024-25</span>
-            <span className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-md text-xs">Active</span>
+            <span className="bg-green-500 text-white px-2 py-1 rounded-md text-xs">Active</span>
           </div>
         </div>
 
-        <div className="flex justify-end">
-          <button 
-            onClick={handleAllotBranchRanks} 
-            disabled={loading || hasAllocated}
-            className={`px-4 py-2 rounded-md text-white ${
-              loading || hasAllocated ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+        <div className="flex justify-end space-x-2">
+          <button
+            onClick={handleAllotBranchRanks}
+            disabled={loading || hasAllocated || noSeatMatrix}
+            className={`px-4 py-2 text-sm rounded-md text-white ${
+              loading || hasAllocated || noSeatMatrix ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
             {loading ? "Processing..." : hasAllocated ? "Ranks Already Allotted" : "Allot Branch Ranks"}
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            disabled={loading || noSeatMatrix}
+            className={`px-4 py-2 text-sm rounded-md text-white ${
+              loading || noSeatMatrix ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            Download PDF
+          </button>
+          <button
+            onClick={handleExportExcel}
+            disabled={loading || noSeatMatrix}
+            className={`px-4 py-2 text-sm rounded-md text-white ${
+              loading || noSeatMatrix ? "bg-gray-400 cursor-not-allowed" : "bg-teal-600 hover:bg-teal-700"
+            }`}
+          >
+            Export to Excel
           </button>
         </div>
 
@@ -326,7 +401,6 @@ export default function ViewVerifiedStudentsPage() {
                     ))}
                   </select>
                 </div>
-
                 <div className="w-64">
                   <label className="text-sm font-medium mb-1 block">Select Gender</label>
                   <select
@@ -341,7 +415,6 @@ export default function ViewVerifiedStudentsPage() {
                     ))}
                   </select>
                 </div>
-
                 <div className="w-64">
                   <label className="text-sm font-medium mb-1 block">Select Category</label>
                   <select
@@ -356,11 +429,28 @@ export default function ViewVerifiedStudentsPage() {
                     ))}
                   </select>
                 </div>
-
+                <div className="w-64">
+                  <label className="text-sm font-medium mb-1 block">Select Branch</label>
+                  <select
+                    value={selectedBranch}
+                    onChange={(e) => handleBranchChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Branches</option>
+                    {branches.map((branch) => (
+                      <option key={branch} value={branch}>
+                        {branch}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex-1">
                   <p className="text-sm text-blue-600 flex items-center">
                     <span className="inline-block w-2 h-2 bg-blue-600 rounded-full mr-2"></span>
-                    Currently viewing: {yearOptions.find((y) => y.value === selectedYear)?.label} - {genderOptions.find((g) => g.value === selectedGender)?.label} - {categoryOptions.find((c) => c.value === selectedCategory)?.label}
+                    Currently viewing: {yearOptions.find((y) => y.value === selectedYear)?.label} -{" "}
+                    {genderOptions.find((g) => g.value === selectedGender)?.label} -{" "}
+                    {categoryOptions.find((c) => c.value === selectedCategory)?.label} -{" "}
+                    {selectedBranch === "all" ? "All Branches" : selectedBranch}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Selected: {selectedStudents.length} students</p>
                 </div>
@@ -379,20 +469,35 @@ export default function ViewVerifiedStudentsPage() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Roll No
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Branch
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Category
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {paginatedSelectedStudents.map((student) => (
                           <tr key={student.roll_no}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.roll_no}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {student.roll_no}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {student.first_name} {student.middle_name ? student.middle_name + " " : ""}{student.last_name}
+                              {student.first_name} {student.middle_name ? `${student.middle_name} ` : ""}
+                              {student.last_name}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.branch.name}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -416,7 +521,6 @@ export default function ViewVerifiedStudentsPage() {
                       </tbody>
                     </table>
                   </div>
-
                   {renderPagination(currentPage, totalSelectedPages, setCurrentPage)}
                 </>
               )}
@@ -427,14 +531,15 @@ export default function ViewVerifiedStudentsPage() {
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b">
             <h2 className="text-xl font-semibold text-gray-900">Verified But Not Selected Students</h2>
-            <p className="text-sm text-gray-600 mt-1">Students who have been verified but not yet selected for hostel allocation</p>
+            <p className="text-sm text-gray-600 mt-1">
+              Students who have been verified but not yet selected for hostel allocation
+            </p>
           </div>
           <div className="p-6">
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <p className="text-sm text-gray-600">Available: {nonSelectedStudents.length} students</p>
               </div>
-
               {loading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
@@ -450,20 +555,35 @@ export default function ViewVerifiedStudentsPage() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll No</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Roll No
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Name
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Branch
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Category
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {paginatedNonSelectedStudents.map((student) => (
                           <tr key={student.roll_no}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{student.roll_no}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {student.roll_no}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {student.first_name} {student.middle_name ? student.middle_name + " " : ""}{student.last_name}
+                              {student.first_name} {student.middle_name ? `${student.middle_name} ` : ""}
+                              {student.last_name}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.branch.name}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -487,7 +607,6 @@ export default function ViewVerifiedStudentsPage() {
                       </tbody>
                     </table>
                   </div>
-
                   {renderPagination(currentNonSelectedPage, totalNonSelectedPages, setCurrentNonSelectedPage)}
                 </>
               )}
