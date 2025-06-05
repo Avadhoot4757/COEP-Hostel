@@ -84,7 +84,7 @@ const MultiStepForm = () => {
   const [isFetching, setIsFetching] = useState(true); // New state for fetch loading
 
   const caste = watch("caste", "");
-  const className = user?.year;
+  const className = user?.class_name;
   
   // Debug auth state
   useEffect(() => {
@@ -102,7 +102,7 @@ const MultiStepForm = () => {
   
     if (!authLoading && user?.username) {
       setValue("roll_no", user.username, { shouldValidate: true });
-      setValue("class_name", user?.year, { shouldValidate: true });
+      setValue("class_name", user?.class_name, { shouldValidate: true });
     }
   }, [user, authLoading, setValue]);
 
@@ -121,7 +121,7 @@ const MultiStepForm = () => {
           return;
         }
         console.log(user);
-        const studying_year = user?.year;
+        const studying_year = user?.class_name;
         //const studying_year = "fy";
         const [branchesRes, categoriesRes, castesRes] = await Promise.all([
           api.get(`/auth/branches/?year=${studying_year}`),
@@ -535,13 +535,13 @@ const MultiStepForm = () => {
                       </Label>
                       <Input
                         id="class_display"
-                        value={user?.year === "fy"
+                        value={user?.class_name === "fy"
                           ? "First Year"
-                          : user?.year === "sy"
+                          : user?.class_name === "sy"
                           ? "Second Year"
-                          : user?.year === "ty"
+                          : user?.class_name === "ty"
                           ? "Third Year"
-                          : user?.year === "btech"
+                          : user?.class_name === "btech"
                           ? "B.Tech"
                           : ""}
                         disabled
@@ -552,7 +552,7 @@ const MultiStepForm = () => {
                         {...register("class_name", {
                           required: "Class name is required",
                         })}
-                        value={user?.year || ""}
+                        value={user?.class_name || ""}
                       />
                       {errors.class_name && (
                         <p className="text-sm text-red-500">
