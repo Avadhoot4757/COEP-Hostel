@@ -621,7 +621,7 @@ class exp_students(APIView):
             year = request.query_params.get('year', 'fy')
             gender = request.query_params.get('gender', 'male')
             category = request.query_params.get('category', 'all')
-            export_format = request.query_params.get('format', 'pdf')  # 'pdf' or 'excel'
+            export_format = request.query_params.get('exp_format', 'pdf')  # 'pdf' or 'excel'
 
             valid_years = [choice[0] for choice in StudentDataEntry.CLASS_CHOICES]
             if year not in valid_years:
@@ -779,7 +779,7 @@ class exp_students(APIView):
         workbook.save(buffer)
         buffer.seek(0)
         response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            content_type='application/vnd.openxml`format`s-officedocument.spreadsheetml.sheet'
         )
         response['Content-Disposition'] = f'attachment; filename="students_{year}_{gender}_{category}.xlsx"'
         response.write(buffer.getvalue())
