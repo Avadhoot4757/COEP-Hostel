@@ -42,33 +42,66 @@ class RoomGroupStatusView(APIView):
     def post(self, request):
         user = request.user
         user_groups = user.room_groups.all()
-
+    
         if not user_groups:
             return Response(
                 {"error": "You are not part of any room group"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        room_group = user_groups.first()  # Assume user is in at most one room group
+    
+        room_group = user_groups.first()  # Assuming user is in only one group
         member_count = room_group.members.count()
-
+    
         if member_count <= 1:
             return Response(
                 {"error": "Cannot leave a room group with only one member"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
+    
         # Remove user from the room group
         room_group.members.remove(user)
-
-        # Delete the room group if it becomes empty
+    
+        # If only 1 member left or none, delete the group (Preferences will cascade due to on_delete=models.CASCADE)
         if room_group.members.count() <= 1:
             room_group.delete()
-
+        else:
+            # If group still has more than one member, delete its preferences
+            room_group.preferences.all().delete()
+    
         return Response(
             {"message": "Successfully left the room group"},
             status=status.HTTP_200_OK
         )
+    # def post(self, request):
+    #     user = request.user
+    #     user_groups = user.room_groups.all()
+    #
+    #     if not user_groups:
+    #         return Response(
+    #             {"error": "You are not part of any room group"},
+    #             status=status.HTTP_400_BAD_REQUEST
+    #         )
+    #
+    #     room_group = user_groups.first()  # Assume user is in at most one room group
+    #     member_count = room_group.members.count()
+    #
+    #     if member_count <= 1:
+    #         return Response(
+    #             {"error": "Cannot leave a room group with only one member"},
+    #             status=status.HTTP_400_BAD_REQUEST
+    #         )
+    #
+    #     # Remove user from the room group
+    #     room_group.members.remove(user)
+    #
+    #     # Delete the room group if it becomes empty
+    #     if room_group.members.count() <= 1:
+    #         room_group.delete()
+    #
+    #     return Response(
+    #         {"message": "Successfully left the room group"},
+    #         status=status.HTTP_200_OK
+    #     )
 
 class AvailableStudentsView(APIView):
     """Get available students & send room invites"""
@@ -398,6 +431,7 @@ class PreferenceView(APIView):
         except Room.DoesNotExist:
             return Response({"error": "One or more rooms are invalid or do not match the block capacity"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            print(e)
             return Response({"error": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class BlockViewSet(viewsets.ModelViewSet):

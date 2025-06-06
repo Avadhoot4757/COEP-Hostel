@@ -119,11 +119,19 @@ class PreferenceSubmitSerializer(serializers.Serializer):
             group = request.user.room_groups.get()
             if group.members.count() != 4:
                 raise serializers.ValidationError("Group must have exactly 4 members")
-            
-            student_data = request.user.student_data_entry
-            blocks = Block.objects.filter(class_name=student_data.class_name, gender=student_data.gender)
+
+            # Access student data via related_name
+            student_data = request.user.data_entry
+
+            # Fetch floors that match student class and gender
+            floors = Floor.objects.filter(
+                class_name=student_data.class_name,
+                gender=student_data.gender
+            )
+
+            # Fetch rooms on those floors which are not occupied
             room_ids = Room.objects.filter(
-                floor__block__in=blocks,
+                floor__in=floors,
                 is_occupied=False
             ).values_list('room_id', flat=True)
 
@@ -131,9 +139,11 @@ class PreferenceSubmitSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     "Preferences must include all available non-occupied rooms"
                 )
+
         except RoomGroup.DoesNotExist:
             raise serializers.ValidationError("You must be in a group to save preferences")
         except StudentDataEntry.DoesNotExist:
             raise serializers.ValidationError("Complete your student profile")
 
         return value
+
