@@ -35,6 +35,57 @@ import {
 import { Alert, AlertDescription } from "@/components/applicationform/ui/alert";
 import { FileUploadField } from "@/components/applicationform/FileUploadField";
 
+type FormFieldName =
+  | "orphan"
+  | "pwd"
+  | "roll_no"
+  | "first_name"
+  | "middle_name"
+  | "last_name"
+  | "gender"
+  | "mobile_number"
+  | "class_name"
+  | "branch"
+  | "caste"
+  | "personal_mail"
+  | "blood_group"
+  | "entrance_exam"
+  | "rank"
+  | "college_mail"
+  | "cgpa"
+  | "backlogs"
+  | "ews_certificate"
+  | "caste_certificate"
+  | "caste_validity_certificate"
+  | "income_certificate"
+  | "creamy_layer"
+  | "non_creamy_layer_certificate"
+  | "admission_category"
+  | "parent_name"
+  | "parent_contact"
+  | "parent_occupation"
+  | "annual_income"
+  | "permanent_address"
+  | "address_proof"
+  | "local_guardian_name"
+  | "local_guardian_contact"
+  | "local_guardian_address"
+  | "emergency_contact"
+  | "application_form"
+  | "hostel_no_dues"
+  | "mess_no_dues"
+  | "pwd_certificate";
+
+interface Branch {
+  branch: string;
+}
+interface Category {
+  admission_category: string;
+}
+interface Caste {
+  caste: string;
+}
+
 const MultiStepForm = () => {
   const { user, isAuthenticated, loading: authLoading, logout } = useAuth();
   const router = useRouter();
@@ -65,6 +116,23 @@ const MultiStepForm = () => {
       local_guardian_contact: "",
       local_guardian_address: "",
       emergency_contact: "",
+
+      // Add these missing fields
+      creamy_layer: "",
+      entrance_exam: "",
+      rank: "",
+      college_mail: "",
+      cgpa: "",
+      ews_certificate: null,
+      caste_certificate: null,
+      caste_validity_certificate: null,
+      income_certificate: null,
+      non_creamy_layer_certificate: null,
+      pwd_certificate: null,
+      address_proof: null,
+      application_form: null,
+      hostel_no_dues: null,
+      mess_no_dues: null,
     },
   });
   const {
@@ -77,32 +145,30 @@ const MultiStepForm = () => {
   } = methods;
 
   const [step, setStep] = useState(1);
-  const [branches, setBranches] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [castes, setCastes] = useState([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [castes, setCastes] = useState<Caste[]>([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isFetching, setIsFetching] = useState(true); // New state for fetch loading
 
   const caste = watch("caste", "");
   const className = user?.class_name;
-  
+
   // Debug auth state
   useEffect(() => {
     console.log("Apply page auth:", { authLoading, isAuthenticated, user });
     if (!authLoading && !isAuthenticated) {
-    console.log("Redirecting to login from /apply");
-    router.push("/?auth=login");
-    return ;
-  }
-    
+      console.log("Redirecting to login from /apply");
+      router.push("/?auth=login");
+      return;
+    }
   }, [authLoading, isAuthenticated, user]);
 
   // Set roll_no
   useEffect(() => {
-  
     if (!authLoading && user?.username) {
       setValue("roll_no", user.username, { shouldValidate: true });
-      setValue("class_name", user?.class_name, { shouldValidate: true });
+      setValue("class_name", user?.class_name || "", { shouldValidate: true });
     }
   }, [user, authLoading, setValue]);
 
@@ -212,7 +278,7 @@ const MultiStepForm = () => {
   const totalSteps = caste === "OPEN" || caste === "EWS" ? 4 : 5;
   const progressPercentage = (step / totalSteps) * 100;
 
-  const getStepTitle = (stepNumber) => {
+  const getStepTitle = (stepNumber: number) => {
     if (stepNumber === 1) return "Basic Details";
     if (caste !== "OPEN" && caste !== "EWS" && stepNumber === 2)
       return "Caste Details";
@@ -222,7 +288,7 @@ const MultiStepForm = () => {
     return `Step ${stepNumber}`;
   };
 
-  const sendDataToBackend = async (formValues) => {
+  const sendDataToBackend = async (formValues: Record<string, any>) => {
     try {
       const formData = new FormData();
       Object.entries(formValues).forEach(([key, value]) => {
@@ -245,7 +311,7 @@ const MultiStepForm = () => {
     }
   };
 
-  const onSubmit = async (formData) => {
+  const onSubmit = async (formData: Record<string, any>) => {
     if (!window.confirm("Are you sure you want to submit the form?")) return;
 
     const processedData = { ...formData };
@@ -267,7 +333,8 @@ const MultiStepForm = () => {
 
   const handleNext = async () => {
     const fieldsToValidate = getFieldsForStep(step);
-    const isValid = await trigger(fieldsToValidate);
+    // Cast to 'any' to bypass the type checking issue
+    const isValid = await trigger(fieldsToValidate as any);
     if (!isValid) return;
 
     if (step === 1 && !caste) return;
@@ -275,7 +342,7 @@ const MultiStepForm = () => {
     setStep(step + 1);
   };
 
-  const getFieldsForStep = (step) => {
+  const getFieldsForStep = (step: number): FormFieldName[] => {
     if (step === 1) {
       const fields = [
         "first_name",
@@ -290,15 +357,18 @@ const MultiStepForm = () => {
         "personal_mail",
         "blood_group",
         "backlogs",
-      ];
+      ] as FormFieldName[];
+      
       if (className === "fy") {
-        fields.push("entrance_exam", "rank");
+        fields.push("entrance_exam" as FormFieldName, "rank" as FormFieldName);
       } else {
-        fields.push("college_mail", "cgpa");
+        fields.push("college_mail" as FormFieldName, "cgpa" as FormFieldName);
       }
+      
       if (caste === "EWS") {
-        fields.push("ews_certificate");
+        fields.push("ews_certificate" as FormFieldName);
       }
+      
       return fields;
     }
     if (caste !== "OPEN" && caste !== "EWS" && step === 2) {
@@ -308,13 +378,14 @@ const MultiStepForm = () => {
         "income_certificate",
         "creamy_layer",
       ].concat(
-        watch("creamy_layer") === "yes" ? ["non_creamy_layer_certificate"] : []
-      );
+        // Add type assertion to fix the error
+        String(watch("creamy_layer")) === "yes" ? ["non_creamy_layer_certificate"] : []
+      ) as FormFieldName[];
     }
     if (step === totalSteps - 2) {
       return ["admission_category", "orphan", "pwd"].concat(
-        watch("pwd") === "yes" ? ["pwd_certificate"] : []
-      );
+        String(watch("pwd")) === "yes" ? ["pwd_certificate"] : []
+      ) as FormFieldName[];
     }
     if (step === totalSteps - 1) {
       return [
@@ -323,7 +394,7 @@ const MultiStepForm = () => {
         "parent_occupation",
         "annual_income",
         "permanent_address",
-        "address_proof",  
+        "address_proof",
         "local_guardian_name",
         "local_guardian_contact",
         "local_guardian_address",
@@ -331,9 +402,9 @@ const MultiStepForm = () => {
       ];
     }
     if (step === totalSteps) {
-      return ["application_form", "hostel_no_dues", "mess_no_dues"];
+      return ["application_form", "hostel_no_dues", "mess_no_dues"] as FormFieldName[];
     }
-    return [];
+    return [] as FormFieldName[];
   };
 
   return (
@@ -1034,7 +1105,12 @@ const MultiStepForm = () => {
                       Belongs to Person with Disability Candidate
                     </Label>
                     <RadioGroup
-                      onValueChange={(value) =>  {setValue("pwd", value); trigger("pwd");}} defaultValue={watch("pwd")}>
+                      onValueChange={(value) => {
+                        setValue("pwd", value === "yes", { shouldValidate: true });
+                        trigger("pwd");
+                      }}
+                      defaultValue={watch("pwd") ? "yes" : "no"}  // Convert boolean to string for display
+                    >
                       <div className="flex space-x-4">
                         <div className="flex text-black items-center space-x-2">
                           <RadioGroupItem value="yes" id="pwd-yes" />
@@ -1053,7 +1129,7 @@ const MultiStepForm = () => {
                     {errors.pwd && (  <p className="text-sm text-red-500"> {errors.pwd.message} </p>)}
                   </div> 
 
-                {watch("pwd") === "yes" && (
+                {watch("pwd") === true && (
                     <FileUploadField name="pwd_certificate" label="Person with Disability Candidate Certificate" />
                 )}
               </div>

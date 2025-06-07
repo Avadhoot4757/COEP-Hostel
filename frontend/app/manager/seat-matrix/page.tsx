@@ -229,12 +229,12 @@ export default function SeatMatrixPage() {
     const seatsPerWeight = totalSeats / totalWeight
     console.log('Debug - Seats per weight:', seatsPerWeight)
   
-    const newMatrix = {}
-    const newBranchAllocations = {}
+    const newMatrix : Record<string, Record<string, number>> = {}
+    const newBranchAllocations : Record<string, { ewsSeats: number, allIndiaSeats: number }> = {}
   
     // Step 1: Calculate seat allocations for each branch
     let remainingTotalSeats = totalSeats
-    const branchSeatAllocations = {}
+    const branchSeatAllocations : Record<string, number> = {}
   
     branches.forEach((branch, index) => {
       const branchWeight = Number(branch.seat_allocation_weight) || 0

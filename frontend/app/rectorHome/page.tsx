@@ -378,7 +378,7 @@ export default function RectorHome() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Date Submission</AlertDialogTitle>
             <AlertDialogDescription>
-              <p>Please confirm the following dates for {selectedYears.map(y => YEAR_LABELS[y]).join(", ")}:</p>
+              <p>Please confirm the following dates for {selectedYears.map(y => YEAR_LABELS[y as keyof typeof YEAR_LABELS]).join(", ")}:</p>
               <ul className="mt-2 space-y-2">
                 {formData.map(event => (
                   <li key={event.event}>
@@ -430,7 +430,7 @@ export default function RectorHome() {
                   <SelectContent>
                     {YEAR_OPTIONS.map(year => (
                       <SelectItem key={year} value={year}>
-                        {YEAR_LABELS[year]}
+                        {YEAR_LABELS[year as keyof typeof YEAR_LABELS]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -449,7 +449,7 @@ export default function RectorHome() {
                   {viewDates.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center">
-                        No dates set for {YEAR_LABELS[selectedViewYear]}.
+                        No dates set for {YEAR_LABELS[selectedViewYear as keyof typeof YEAR_LABELS]}.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -614,7 +614,7 @@ export default function RectorHome() {
                           disabled={false}
                         />
                         <Label htmlFor={`year-${year}`} className="text-base">
-                          {YEAR_LABELS[year]}
+                          {YEAR_LABELS[year as keyof typeof YEAR_LABELS]}
                         </Label>
                       </div>
                     ))}
