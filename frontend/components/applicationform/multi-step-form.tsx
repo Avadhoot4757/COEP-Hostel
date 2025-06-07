@@ -13,18 +13,18 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/applicationform/ui/card";
-import { Input } from "@/components/applicationform/ui/input";
-import { Button } from "@/components/applicationform/ui/button";
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/applicationform/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/applicationform/ui/radio-group";
-import { Label } from "@/components/applicationform/ui/label";
+} from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
   AlertCircle,
   ArrowLeft,
@@ -32,7 +32,7 @@ import {
   CheckCircle2,
   Loader2,
 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/applicationform/ui/alert";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FileUploadField } from "@/components/applicationform/FileUploadField";
 
 type FormFieldName =
