@@ -33,7 +33,7 @@ export const managerItems = [
   },
 ]
 
-const studentItems = [
+export const studentItems = [
   {
     title: "Dashboard",
     url: "/student",

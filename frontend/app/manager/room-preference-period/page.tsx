@@ -71,12 +71,16 @@ function OpenRoomPreference() {
         setOngoingEvents(ongoing);
         setUpcomingEvents(upcoming);
       } catch (err) {
+        let errorMessage = "Failed to fetch events.";
+        if (err && typeof err === 'object' && 'response' in err) {
+          const error = err as any;
+          errorMessage = error.response?.data?.error || errorMessage;
+        }
         toast({
           title: "Error",
-          description: err.response?.data?.error || "Failed to fetch events.",
+          description: errorMessage,
           variant: "destructive",
         })
-        // setError('Failed to fetch events');
       } finally {
         setIsLoading(false);
       }
@@ -108,19 +112,22 @@ function OpenRoomPreference() {
       await api.delete(`/adminrole/open-room-preference/?year=${year}`);
       setOngoingEvents((prev) => prev.filter((event) => event.year !== year));
       setUpcomingEvents((prev) => prev.filter((event) => event.year !== year));
-      // alert('Event deleted successfully');
       toast({
         title: "Success",
         description: "Event deleted successfully",
         variant: "default",
       })
-    } catch (err: any) {
+    } catch (err) {
+      let errorMessage = "Failed to delete event.";
+      if (err && typeof err === 'object' && 'response' in err) {
+        const error = err as any;
+        errorMessage = error.response?.data?.error || errorMessage;
+      }
       toast({
         title: "Error",
-        description: error.response?.data?.error || "Failed to delete event.",
+        description: errorMessage,
         variant: "destructive",
       })
-      // setError(err.response?.data?.error || 'Failed to delete event');
     }
   };
 
@@ -152,7 +159,6 @@ function OpenRoomPreference() {
 
     try {
       await api.post('/adminrole/open-room-preference/', payload);
-      // alert('Open Room Preferences dates saved successfully');
       toast({
         title: "Success",
         description: "Open Room Preferences dates saved successfully",
@@ -172,14 +178,17 @@ function OpenRoomPreference() {
       });
       setOngoingEvents(ongoing);
       setUpcomingEvents(upcoming);
-    } catch (err: any) {
-      console.error("API error:", err.response?.data);
+    } catch (err) {
+      let errorMessage = "Failed to save dates.";
+      if (err && typeof err === 'object' && 'response' in err) {
+        const error = err as any;
+        errorMessage = error.response?.data?.error || errorMessage;
+      }
       toast({
         title: "Error",
-        description: error.response?.data?.error || "Failed to save dates.",
+        description: errorMessage,
         variant: "destructive",
       })
-      // setError(err.response?.data?.error || JSON.stringify(err.response?.data) || 'Failed to save dates');
     } finally {
       setIsSubmitting(false);
     }

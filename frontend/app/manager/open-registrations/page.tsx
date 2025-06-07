@@ -71,9 +71,15 @@ function OpenRegistration() {
         setOngoingEvents(ongoing);
         setUpcomingEvents(upcoming);
       } catch (err) {
+        let errorMessage = "Failed to fetch events.";
+  
+        if (err && typeof err === 'object' && 'response' in err) {
+          const error = err as any;
+          errorMessage = error.response?.data?.error || errorMessage;
+        }
         toast({
           title: "Error",
-          description: err.response?.data?.error || "Failed to fetch events.",
+          description: errorMessage,
           variant: "destructive",
         })
         // setError('Failed to fetch events');
@@ -115,9 +121,15 @@ function OpenRegistration() {
         variant: "default",
       })
     } catch (err: any) {
+      let errorMessage = "Failed to delete event.";
+  
+      if (err && typeof err === 'object' && 'response' in err) {
+        const error = err as any;
+        errorMessage = error.response?.data?.error || errorMessage;
+      }
       toast({
         title: "Error",
-        description: err.response?.data?.error || "Failed to delete event.",
+        description: errorMessage,
         variant: "destructive",
       })
       // setError(err.response?.data?.error || 'Failed to delete event');
@@ -173,10 +185,15 @@ function OpenRegistration() {
       setOngoingEvents(ongoing);
       setUpcomingEvents(upcoming);
     } catch (err: any) {
-      console.error("API error:", err.response?.data);
+      let errorMessage = "Failed to save dates.";
+  
+      if (err && typeof err === 'object' && 'response' in err) {
+        const error = err as any;
+        errorMessage = error.response?.data?.error || errorMessage;
+      }
       toast({
         title: "Error",
-        description: err.response?.data?.error || "Failed to save dates.",
+        description: errorMessage,
         variant: "destructive",
       })
       // setError(err.response?.data?.error || JSON.stringify(err.response?.data) || 'Failed to save dates');
