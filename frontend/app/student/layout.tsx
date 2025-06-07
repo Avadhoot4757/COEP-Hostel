@@ -5,6 +5,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { DynamicBreadcrumb } from "@/components/ui/dynamic-breadcrumb"
+import { studentItems } from "@/constants/managementItems"
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -12,25 +13,6 @@ export const metadata: Metadata = {
   title: "Hostel Allocation System",
   description: "Find roommates and select hostel rooms",
 };
-
-const managementItems = [
-  {
-    title: "Dashboard",
-    url: "/student",
-  },
-  {
-    title: "Students Directory",
-    url: "/student/students-directory",
-  },
-  {
-    title: "Invites",
-    url: "/student/invites",
-  },
-  {
-    title: "Room Preferences",
-    url: "/student/room-preferences",
-  },
-]
 
 export default function RootLayout({
   children,
@@ -45,7 +27,7 @@ export default function RootLayout({
               <div className="flex items-center gap-2 px-4">
                 <SidebarTrigger className="-ml-1" />
                 <Separator orientation="vertical" className="mr-2 h-4" />
-                <DynamicBreadcrumb managementItems={managementItems} />
+                <DynamicBreadcrumb managementItems={studentItems} />
               </div>
             </header>
             {children}
