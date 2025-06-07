@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,7 +27,7 @@ SECRET_KEY = 'django-insecure-%w!4_nqs-e1f-hn&jt-w5i+4*l*h3h=)9(zrsq&7i0gg&0)!wa
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["coep-hostel.duckdns.org", "localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -60,9 +61,19 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
+    "http://coep-hostel.duckdns.org",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://18.215.52.166",
 ]
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://coep-hostel.duckdns.org",
+]
+
 
 # For development only (remove in production)
 CORS_ALLOW_CREDENTIALS = True
@@ -137,7 +148,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -178,4 +190,5 @@ EMAIL_HOST_USER = 'djangoproject24@gmail.com'
 EMAIL_HOST_PASSWORD = 'izkb yqsh bviy ptta'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
