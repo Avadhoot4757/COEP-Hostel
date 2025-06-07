@@ -6,6 +6,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/adminrole/app-sidebar"
 import { Separator } from "@/components/ui/separator"
 import { DynamicBreadcrumb } from "@/components/ui/dynamic-breadcrumb"
+import { managerItems } from "@/constants/managementItems"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -13,41 +14,6 @@ export const metadata: Metadata = {
   title: "Hostel Manager Dashboard",
   description: "Comprehensive hostel allotment management system",
 }
-
-export const managementItems = [
-  {
-    title: "Insert Students Data",
-    url: "/manager/insert-students-data",
-  },
-  {
-    title: "Hostel Blocks",
-    url: "/manager/blocks",
-  },
-  {
-    title: "Dashboard",
-    url: "/manager",
-  },
-  {
-    title: "Open Registrations",
-    url: "/manager/open-registrations",
-  },
-  {
-    title: "Seat Matrix",
-    url: "/manager/seat-matrix",
-  },
-  {
-    title: "Verify Students",
-    url: "/manager/verify-students",
-  },
-  {
-    title: "Select Students",
-    url: "/manager/select-students",
-  },
-  {
-    title: "Room Preference Period",
-    url: "/manager/room-preference-period",
-  },
-]
 
 export default function RootLayout({
   children,
@@ -63,7 +29,7 @@ export default function RootLayout({
               <div className="flex items-center gap-2 px-4">
                 <SidebarTrigger className="-ml-1" />
                 <Separator orientation="vertical" className="mr-2 h-4" />
-                <DynamicBreadcrumb managementItems={managementItems} />
+                <DynamicBreadcrumb managementItems={managerItems} />
               </div>
             </header>
             {children}
