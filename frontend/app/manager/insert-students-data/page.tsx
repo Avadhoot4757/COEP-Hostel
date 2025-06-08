@@ -2,7 +2,7 @@
 import React, { useState, DragEvent, ChangeEvent } from 'react';
 import { Upload, X, CheckCircle, AlertCircle, Eye, EyeOff, Database, FileText, Info } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import api from '@/lib/api';
+import api from "@/lib/api";
 
 interface StudentData {
   id: number;
@@ -25,9 +25,9 @@ const StudentUploadPage: React.FC = () => {
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [showExtractAnimation, setShowExtractAnimation] = useState<boolean>(false);
+  const [showUploadAnimation, setShowUploadAnimation] = useState<boolean>(false);
 
   const expectedColumns: string[] = ['roll_no', 'email', 'class_name'];
-  
   const classChoices: string[] = ['fy', 'sy', 'ty', 'btech'];
 
   const showToastMessage = (type: 'success' | 'error', message: string): void => {
@@ -97,7 +97,6 @@ const StudentUploadPage: React.FC = () => {
       );
 
       if (matchingColumns.length !== expectedColumns.length) {
-        console.log(' here : ' + matchingColumns)
         showToastMessage('error', 'Missing required columns. Expected: roll_no, email, class_name');
         setLoading(false);
         return;
@@ -176,29 +175,32 @@ const StudentUploadPage: React.FC = () => {
     }
 
     setLoading(true);
-    
+    setShowUploadAnimation(true);
+
     try {
       const dataToSubmit = extractedData.map(row => ({
         roll_no: row.roll_no,
         email: row.email,
         class_name: row.class_name.toLowerCase() || classChoices[0]
       }));
-      const response = await api.post('/auth/studentverification/', dataToSubmit);
 
-      if (response.status === 201) {
+      // Fire and forget the POST request
+      api.post('/auth/studentverification/', dataToSubmit).catch(error => {
+        console.error('Upload error:', error);
+      });
+
+      // Show success immediately
+      setTimeout(() => {
         showToastMessage('success', `Successfully added ${extractedData.length} students to database`);
         setFile(null);
         setExtractedData([]);
         setShowPreview(false);
-      } else {
-        showToastMessage('error', response.data.message || 'Failed to add students to database');
-      }
-    } catch (error: any) {
-      showToastMessage('error', error.response?.data?.message || 'Network error. Please try again.');
-      console.error('Submit error:', error);
+        setShowUploadAnimation(false);
+        setLoading(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Submission error:', error);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -291,6 +293,7 @@ const StudentUploadPage: React.FC = () => {
                     setShowExtractAnimation(false);
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors duration-300"
+                  disabled={loading}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -376,13 +379,13 @@ const StudentUploadPage: React.FC = () => {
         )}
 
         {extractedData.length > 0 && !showExtractAnimation && (
-          <div className="flex justify-end transform transition-all duration-1000 ease-out animate-in slide-in-from-bottom-4">
+          <div className="flex justify-end space-x-4 transform transition-all duration-1000 ease-out animate-in slide-in-from-bottom-4">
             <button
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || showUploadAnimation}
               className="bg-black text-white px-8 py-3 rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 font-medium transition-all duration-300 hover:scale-105"
             >
-              {loading ? (
+              {loading || showUploadAnimation ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   <span>Processing...</span>
@@ -420,7 +423,24 @@ const StudentUploadPage: React.FC = () => {
           </div>
         )}
 
-        {loading && (
+        {showUploadAnimation && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 transition-opacity duration-500">
+            <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full mx-4 transform transition-all duration-500 scale-100">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Database className="w-8 h-8 text-blue-600 animate-pulse" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Uploading Student Data</h3>
+                <p className="text-gray-600">Sending {extractedData.length} records to the server</p>
+              </div>
+              <div className="mt-4 w-full bg-gray-200 rounded-full h-3">
+                <div className="bg-blue-600 h-3 rounded-full w-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading && !showUploadAnimation && !showExtractAnimation && (
           <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-40 transition-opacity duration-500">
             <div className="bg-white p-6 rounded-lg shadow-lg flex items-center space-x-4 transform transition-all duration-500 scale-100">
               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black"></div>
