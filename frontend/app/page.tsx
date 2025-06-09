@@ -1,83 +1,10 @@
-"use client";
+import { Suspense } from "react";
+import Home from "./home-client"; // adjust path if you move file
 
-import { useState, useEffect } from "react";
-import Particles from "react-tsparticles";
-import { loadFull } from "tsparticles";
-import { particlesConfig } from "@/utils/particles-config";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
-import Hero from "@/components/home/Hero";
-import Stats from "@/components/home/Stats";
-import Amenities from "@/components/home/Amenities";
-import Testimonials from "@/components/home/Testimonials";
-import Rules from "@/components/home/Rules";
-import AuthModal from "@/components/auth/AuthModal";
-import { Engine } from "tsparticles-engine";
-import { useSearchParams } from "next/navigation";
-
-import { useRouter } from 'next/navigation';
-
-
-export default function Home() {
-  const router = useRouter();
-  const [showAuth, setShowAuth] = useState(false);
-  const [isLogin, setIsLogin] = useState(true);
-  const searchParams = useSearchParams();
-
-  const particlesInit = async (engine: Engine) => {
-    try {
-      await loadFull(engine);
-    } catch (error) {
-      console.error("Error initializing particles:", error);
-    }
-  };
-
-  useEffect(() => {
-    if (searchParams.get("auth") === "login") {
-      setIsLogin(true);
-      setShowAuth(true);
-      window.history.replaceState(null, "", "/");
-    }
-  }, [searchParams]);
-
+export default function Page() {
   return (
-    <main className="min-h-screen bg-transparent">
-      <div className="fixed inset-0 z-0">
-        <Particles
-          id="tsparticles"
-          init={particlesInit}
-          options={particlesConfig}
-        />
-      </div>
-
-      {showAuth && (
-        <AuthModal
-          isLogin={isLogin}
-          setIsLogin={setIsLogin}
-          onClose={() => setShowAuth(false)}
-        />
-      )}
-
-      <Navbar
-        onLoginClick={() => {
-          setIsLogin(true);
-          setShowAuth(true);
-        }}
-      />
-
-      <Hero
-        onApplyClick={() => {
-          setIsLogin(false);
-          router.push('/student');
-          
-        }}
-      />
-
-      <Stats />
-      <Amenities />
-      <Testimonials />
-      <Rules />
-      <Footer />
-    </main>
+    <Suspense fallback={<div>Loading...</div>}>
+      <Home />
+    </Suspense>
   );
 }
