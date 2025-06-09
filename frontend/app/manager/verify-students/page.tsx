@@ -8,8 +8,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
-import { fetchStudentsByYear } from "@/lib/api-utils"
+import { fetchStudentsByYear, updateStudentStatus } from "@/lib/api-utils"
+import { CheckCircle, XCircle } from "lucide-react"
+import StudentDetailsModal from "@/app/manager/student-details-modal/page"
 
 interface Student {
   roll_no: string
@@ -36,6 +47,15 @@ export default function ManagerPage() {
   const [loading, setLoading] = useState<boolean>(true)
   const [activeTab, setActiveTab] = useState<string>("pending")
   const [selectedGender, setSelectedGender] = useState<string>("all")
+  const [selectedStudentRoll, setSelectedStudentRoll] = useState<string | null>(null)
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false)
+  
+  const [actionStudentRoll, setActionStudentRoll] = useState<string | null>(null)
+  const [actionType, setActionType] = useState<"verify" | "reject" | null>(null)
+  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false)
+  const [rejectReason, setRejectReason] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
   const router = useRouter()
   const { toast } = useToast()
 
@@ -53,7 +73,6 @@ export default function ManagerPage() {
     { value: "other", label: "Other" },
   ]
 
-  // Load students only when year changes (single API call)
   useEffect(() => {
     loadStudents()
   }, [selectedYear])
@@ -75,11 +94,9 @@ export default function ManagerPage() {
     }
   }
 
-  // Frontend filtering - applied instantly without API calls
   const filteredStudents = useMemo(() => {
     let filtered = [...allStudents]
 
-    // Filter by verification status
     switch (activeTab) {
       case "pending":
         filtered = filtered.filter(student => student.verified === null)
@@ -99,7 +116,6 @@ export default function ManagerPage() {
     return filtered
   }, [allStudents, activeTab, selectedGender])
 
-  // Calculate status counts for tab badges
   const statusCounts = useMemo(() => {
     const genderFiltered = selectedGender === "all" 
       ? allStudents 
@@ -115,13 +131,59 @@ export default function ManagerPage() {
 
   const handleYearChange = (value: string) => {
     setSelectedYear(value)
-    // Reset filters when changing year
     setActiveTab("pending")
     setSelectedGender("all")
   }
 
   const handleViewStudent = (rollNo: string) => {
-    router.push(`/manager/student/${rollNo}`)
+    setSelectedStudentRoll(rollNo)
+    setIsDetailsModalOpen(true)
+  }
+
+  const handleActionClick = (rollNo: string, action: "verify" | "reject") => {
+    setActionStudentRoll(rollNo)
+    setActionType(action)
+    setIsActionDialogOpen(true)
+    
+    if (action === "reject") {
+      setRejectReason("")
+    }
+  }
+
+  const handleConfirmAction = async () => {
+    if (!actionStudentRoll || !actionType) return
+
+    setIsSubmitting(true)
+
+    try {
+      const student = allStudents.find(s => s.roll_no === actionStudentRoll)
+      if (!student) throw new Error("Student not found")
+
+      await updateStudentStatus(
+        actionStudentRoll,
+        actionType === "verify",
+        student.verified
+      )
+
+      toast({
+        title: "Success",
+        description: `Student has been ${actionType === "verify" ? "verified" : "rejected"} successfully.`,
+        variant: "success",
+      })
+      
+      loadStudents()
+      setIsActionDialogOpen(false)
+      
+    } catch (error: any) {
+      console.error(error)
+      toast({
+        title: "Error",
+        description: error.message || "Something went wrong. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const getStatusBadge = (status: boolean | null) => {
@@ -205,7 +267,6 @@ export default function ManagerPage() {
               </div>
             </div>
 
-            {/* Status Tabs with Counts */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="pending" className="relative">
@@ -306,14 +367,39 @@ export default function ManagerPage() {
                               </TableCell>
                               <TableCell>{getStatusBadge(student.verified)}</TableCell>
                               <TableCell className="text-right">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleViewStudent(student.roll_no)}
-                                  className="hover:bg-blue-50 hover:border-blue-300"
-                                >
-                                  View Details
-                                </Button>
+                                <div className="flex justify-end space-x-2">
+                                  {student.verified !== true && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => handleActionClick(student.roll_no, "verify")}
+                                    >
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Verify
+                                    </Button>
+                                  )}
+                                  
+                                  {student.verified !== false && (
+                                    <Button
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => handleActionClick(student.roll_no, "reject")}
+                                    >
+                                      <XCircle className="h-3 w-3 mr-1" />
+                                      Reject
+                                    </Button>
+                                  )}
+                                  
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleViewStudent(student.roll_no)}
+                                    className="hover:bg-blue-50 hover:border-blue-300"
+                                  >
+                                    View Details
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -327,6 +413,56 @@ export default function ManagerPage() {
           </div>
         </CardContent>
       </Card>
+
+      {selectedStudentRoll && (
+        <StudentDetailsModal
+          rollNo={selectedStudentRoll}
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          onStudentUpdated={loadStudents}
+        />
+      )}
+      
+      <Dialog open={isActionDialogOpen} onOpenChange={setIsActionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {actionType === "verify" ? "Verify Student" : "Reject Student"}
+            </DialogTitle>
+            <DialogDescription>
+              {`Are you sure you want to ${actionType} this student?`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {actionType === "reject" && (
+            <div className="py-4">
+              <Textarea
+                placeholder="Enter reason for rejection"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsActionDialogOpen(false)} 
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmAction}
+              disabled={(actionType === "reject" && !rejectReason.trim()) || isSubmitting}
+              variant={actionType === "verify" ? "default" : "destructive"}
+            >
+              {isSubmitting ? "Processing..." : actionType === "verify" ? "Verify" : "Reject"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
