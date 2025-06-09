@@ -28,6 +28,7 @@ export async function fetchStudentsByYear(year: string) {
     endpoint = `/adminrole/students/year/?class_name=${year}`;
     console.log("yes baby");
     const response = await api.get(endpoint);
+    console.log("after response")
     return response.data.data;
   } catch (error) {
     throw new Error(`Failed to fetch students`);
