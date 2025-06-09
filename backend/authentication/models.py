@@ -144,6 +144,7 @@ class StudentDataEntry(models.Model):
     admission_confirmation_letter = models.FileField(upload_to='student_documents/admission_confirmation/', null=True, blank=True)
     college_fee_receipt = models.FileField(upload_to='student_documents/fee_receipt/', null=True, blank=True)
     non_creamy_layer_certificate = models.FileField(upload_to='student_documents/ncl_certificate/', null=True, blank=True)
+    backlogs = models.IntegerField(null=False,default=0)
     verified = models.BooleanField(null=True, default=None)
     selected = models.BooleanField(default=False)  # New field to track selection
     last_selection_year = models.CharField(max_length=10, choices=CLASS_CHOICES, null=True, blank=True)  # Tracks the year of last selection

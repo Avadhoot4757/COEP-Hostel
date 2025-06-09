@@ -21,8 +21,9 @@ class SelectDates(models.Model):
         return f"{self.event} - {self.year} (ID: {self.start_date} - {self.end_date or 'N/A'})"
 
 class ReservedSeat(models.Model):
-    goi_jk_seats = models.IntegerField(default=0)
-    nri_fn_pio_gulf_seats = models.IntegerField(default=0)
+    JandK = models.IntegerField(default=0)
+    GULFNPIPIOFN = models.IntegerField(default=0)
+    PWD=models.IntegerField(default=0)
 
     def __str__(self):
         return f"Reserved Seats: GOI & J&K: {self.goi_jk_seats}, NRI/FN/PIO/Gulf: {self.nri_fn_pio_gulf_seats}"
@@ -52,3 +53,15 @@ class SeatMatrix(models.Model):
 
     def __str__(self):
         return f"{self.year} - {self.gender} Seat Matrix"
+
+class AllotmentHistory(models.Model):
+    year = models.CharField(max_length=10)  # e.g., 'ty'
+    gender = models.CharField(max_length=10)  # e.g., 'male'
+    allotment_date = models.DateTimeField(auto_now_add=True)
+    is_manual_override = models.BooleanField(default=False)  # Allows manual re-allocation
+
+    class Meta:
+        unique_together = ('year', 'gender')
+
+    def __str__(self):
+        return f"Allotment for {self.year} - {self.gender}"

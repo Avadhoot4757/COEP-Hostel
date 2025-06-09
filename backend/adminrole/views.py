@@ -982,3 +982,828 @@ class DashboardView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
         
+
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
+
+import random
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Q
+
+class AllotRoomsView(APIView):
+    def post(self, request):
+        # Extract year and gender from the request body
+        year = request.data.get('year')
+        gender = request.data.get('gender')
+
+        # Print the parameters to the console
+        print(f"Received Year: {year}")
+        print(f"Received Gender: {gender}")
+
+        # Step 1: Convert the incoming year to the database format
+        year_mapping = {
+            'first': 'fy',
+            'second': 'sy',
+            'third': 'ty',
+            'fourth': 'btech'
+        }
+        converted_year = year_mapping.get(year.lower())
+        if not converted_year:
+            return Response(
+                {"error": f"Invalid year: {year}. Must be one of 'first', 'second', 'third', 'fourth'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate gender
+        if gender not in ['male', 'female']:
+            return Response(
+                {"error": f"Invalid gender: {gender}. Must be 'male' or 'female'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Step 2: Filter RoomGroup by class_name and gender, then match with StudentDataEntry
+            room_groups = RoomGroup.objects.filter(class_name=converted_year, gender=gender)
+
+            # Initialize the array to store (mis, branch_id) tuples
+            current_year_toppers = []
+
+            # Iterate through each RoomGroup
+            for group in room_groups:
+                mis = group.name  # The 'mis' is the name field in RoomGroup
+                try:
+                    student = StudentDataEntry.objects.get(roll_no=mis)
+                    branch_id = student.branch.id  # Get the branch ID (ForeignKey ID)
+                    current_year_toppers.append((mis, branch_id))
+                except StudentDataEntry.DoesNotExist:
+                    print(f"No student found with roll_no (mis): {mis}")
+                    continue
+
+            # Step 3: Get the array of branch IDs for the corresponding year and initialize special branches
+
+
+            # we have to add the special branches like that 
+            # we have seat allocation weight in the branch i.e it will give us values like 2.00 , 0.50, 3.00 
+            #and we have to do like that if weight is 2 then two chances as we are giving right now if weight is 3 then threee consequetive chaneces if wiegt is half then 1 chance after 2 iterattions liek that 
+            current_year_branches = []
+            special_branches = set()  # Initialize set for special branches
+
+            branches = Branch.objects.filter(year=converted_year)
+            print(f"Found {branches.count()} branches for year {converted_year}")
+            for branch in branches:
+                branch_id = branch.id
+                current_year_branches.append(branch_id)
+                # Add to special_branches if seat_allocation_weight > 2
+                if branch.seat_allocation_weight > 1:
+                    special_branches.add(branch_id)
+
+
+            # Print for debugging
+            print("Current Year Branches:", current_year_branches)
+            print("Special Branches (COMPUTER, MECHANICAL) for year", converted_year, ":", special_branches)
+            print("Current Year Toppers:", current_year_toppers)
+
+            # Step 4: Create the 3D structure (branch_id -> mis -> preferences)
+            branch_mis_structure = {branch_id: [] for branch_id in current_year_branches}
+
+            # Step 5: Populate the structure with mis and empty preferences, and collect branch ranks
+            for branch_id in current_year_branches:
+                mis_for_branch = [(mis, branch_id) for mis, bid in current_year_toppers if bid == branch_id]
+                mis_with_ranks = []
+                for mis, _ in mis_for_branch:
+                    try:
+                        student = StudentDataEntry.objects.get(roll_no=mis)
+                        branch_rank = student.branch_rank if student.branch_rank is not None else float('inf')
+                        mis_with_ranks.append((mis, branch_rank))
+                    except StudentDataEntry.DoesNotExist:
+                        print(f"Student with roll_no {mis} not found during ranking")
+                        continue
+
+                # Sort mis values by branch_rank (lower ranks first)
+                mis_with_ranks.sort(key=lambda x: x[1])
+                for mis, _ in mis_with_ranks:
+                    branch_mis_structure[branch_id].append([mis, []])
+
+            # Step 6: Replace mis with group_id and fill room preferences
+            branch_group_structure = {branch_id: [] for branch_id in current_year_branches}
+            for branch_id, mis_list in branch_mis_structure.items():
+                for mis_entry in mis_list:
+                    mis = mis_entry[0]
+                    try:
+                        room_group = RoomGroup.objects.get(name=mis, class_name=converted_year, gender=gender)
+                        group_id = room_group.id
+                        preferences = Preference.objects.filter(room_group=room_group).order_by('rank')
+                        room_ids = [preference.room.id for preference in preferences]
+                        branch_group_structure[branch_id].append([group_id, room_ids])
+                    except RoomGroup.DoesNotExist:
+                        print(f"RoomGroup with name (mis) {mis} not found")
+                        continue
+
+            # Print the resulting structure for debugging
+            print("Branch Group Structure (with room preferences):", branch_group_structure)
+
+            
+            # Step 7: Allocate rooms
+            # Initialize pointers and shuffle branches
+            pointers = {branch_id: 0 for branch_id in current_year_branches}
+            random.shuffle(current_year_branches)
+            allocated_rooms = []
+
+            # Process allocations
+            while any(pointers[branch_id] < len(branch_group_structure.get(branch_id, []))
+                      for branch_id in current_year_branches):
+                for branch_id in current_year_branches:
+                    # Determine how many groups to process (2 for special branches, 1 for others)
+                    groups_to_process = 2 if branch_id in special_branches else 1
+                    groups_processed = 0
+
+                    while groups_processed < groups_to_process and pointers[branch_id] < len(branch_group_structure.get(branch_id, [])):
+                        group_entry = branch_group_structure[branch_id][pointers[branch_id]]
+                        group_id, room_preferences = group_entry
+
+                        for room_id in room_preferences:
+                            try:
+                                room = Room.objects.get(id=room_id)
+                                if not room.is_occupied:
+                                    group = RoomGroup.objects.get(id=group_id)
+                                    room.is_occupied = True
+                                    room.alloted_group = group
+                                    room.save()
+                                    allocated_rooms.append({
+                                        'group_id': group_id,
+                                        'room_id': room_id,
+                                        'room_number': room.room_id
+                                    })
+                                    pointers[branch_id] += 1
+                                    groups_processed += 1
+                                    break
+                            except Room.DoesNotExist:
+                                continue
+            print(allocated_rooms)
+            # Return the result
+            return Response(
+                {
+                    "message": "Room allocation completed successfully",
+                    "allocated_rooms": allocated_rooms,
+                    "branch_group_structure": branch_group_structure
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response(
+                {"error": f"An error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+#-------------------PDF GENERATION UPDATED --------------------------#
+from django.http import HttpResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.platypus import Table, TableStyle
+from io import BytesIO
+from datetime import datetime
+
+class GeneratePDFView(APIView):
+    def post(self, request):
+        year = request.data.get("year")
+        gender = request.data.get("gender")
+
+        # Map frontend year values to Floor.class_name
+        year_mapping = {
+            "first": "fy",
+            "second": "sy",
+            "third": "ty",
+            "fourth": "btech",
+        }
+
+        if not year or not gender:
+            return Response({"error": "Year and gender are required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if year not in year_mapping or gender not in ["male", "female"]:
+            return Response({"error": "Invalid year or gender"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Convert year to class_name
+            class_name = year_mapping[year]
+
+            # Initialize dictionary to group rooms by block
+            block_rooms = {}
+
+            # Fetch all occupied rooms
+            rooms = Room.objects.filter(
+                is_occupied=True,
+                alloted_group__isnull=False
+            ).select_related("floor__block")
+
+            # Group rooms by block for the given year and gender
+            for room in rooms:
+                floor = room.floor
+                if floor.class_name == class_name and floor.gender == gender:
+                    block_name = floor.block.name
+                    if block_name not in block_rooms:
+                        block_rooms[block_name] = []
+
+                    # Fetch roommate details for this room
+                    current_grp = room.alloted_group
+                    roommate_details = []
+
+                    if current_grp:
+                        # Get all CustomUser objects for the group
+                        roommate_users = current_grp.members.all()
+
+                        for user in roommate_users:
+                            # Check if the user has related student data
+                            if hasattr(user, 'data_entry') and user.data_entry:
+                                entry = user.data_entry
+                                full_name = f"{entry.first_name} {entry.middle_name or ''} {entry.last_name or ''}".strip()
+                                mobile_number = entry.mobile_number
+                                roommate_details.append({
+                                    'full_name': full_name,
+                                    'mobile_number': mobile_number
+                                })
+                            else:
+                                roommate_details.append({
+                                    'full_name': user.username,  # Fallback to username if no data_entry
+                                    'mobile_number': 'N/A'
+                                })
+                    else:
+                        roommate_details.append({
+                            'full_name': 'Not Allotted',
+                            'mobile_number': 'N/A'
+                        })
+
+                    # Store room with its roommate details
+                    block_rooms[block_name].append({
+                        'room_id': room.room_id,
+                        'roommates': roommate_details
+                    })
+
+            if not block_rooms:
+                # print("error not")
+                return Response({"error": "No rooms allotted for the selected year and gender"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Create PDF with professional layout
+            buffer = BytesIO()
+            p = canvas.Canvas(buffer, pagesize=A4)
+            width, height = A4
+            margin = 0.8 * inch
+            y_position = height - margin
+
+            # Header Section
+            self._draw_header(p, width, y_position, year, gender)
+            y_position -= 1.5 * inch
+
+            # Generate tables for each block
+            for block_name, rooms in block_rooms.items():
+                y_position = self._draw_block_table(p, width, margin, y_position, block_name, rooms)
+                
+                # Check if we need a new page
+                if y_position < 2 * inch:
+                    p.showPage()
+                    y_position = height - margin
+
+            p.save()
+
+            # Get PDF data
+            pdf = buffer.getvalue()
+            buffer.close()
+
+            # Return PDF response
+            response = HttpResponse(content_type="application/pdf")
+            response["Content-Disposition"] = f'attachment; filename="COEP_Room_Allotment_{year}_{gender}_{datetime.now().year}.pdf"'
+            response.write(pdf)
+            return response
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def _draw_header(self, p, width, y_position, year, gender):
+        """Draw the official header section"""
+        # Main title
+        p.setFont("Helvetica-Bold", 20)
+        title = "COEP HOSTEL MANAGEMENT"
+        title_width = p.stringWidth(title, "Helvetica-Bold", 20)
+        p.drawString((width - title_width) / 2, y_position, title)
+        
+        # Subtitle
+        p.setFont("Helvetica-Bold", 16)
+        current_year = datetime.now().year
+        subtitle = f"{year.upper()} YEAR - {gender.upper()} ROOM ALLOTMENT RESULTS"
+        subtitle_width = p.stringWidth(subtitle, "Helvetica-Bold", 16)
+        p.drawString((width - subtitle_width) / 2, y_position - 0.4 * inch, subtitle)
+        
+        # Academic year
+        p.setFont("Helvetica", 12)
+        academic_year = f"Academic Year: {current_year}-{current_year + 1}"
+        academic_width = p.stringWidth(academic_year, "Helvetica", 12)
+        p.drawString((width - academic_width) / 2, y_position - 0.7 * inch, academic_year)
+        
+        # Date
+        date_str = f"Generated on: {datetime.now().strftime('%B %d, %Y')}"
+        date_width = p.stringWidth(date_str, "Helvetica", 12)
+        p.drawString((width - date_width) / 2, y_position - 0.9 * inch, date_str)
+        
+        # Draw a line under header
+        p.line(0.8 * inch, y_position - 1.2 * inch, width - 0.8 * inch, y_position - 1.2 * inch)
+
+    def _draw_block_table(self, p, width, margin, y_position, block_name, rooms):
+        """Draw a professional table for each block"""
+        # Block title
+        p.setFont("Helvetica-Bold", 14)
+        p.drawString(margin, y_position, f"BLOCK: {block_name}")
+        y_position -= 0.4 * inch
+        
+        # Prepare table data
+        table_data = [['Sr. No.', 'Room No.', 'Student Name', 'Mobile Number']]
+        
+        sr_no = 1
+        for room in sorted(rooms, key=lambda x: x['room_id']):
+            if room['roommates']:
+                for i, roommate in enumerate(room['roommates']):
+                    if i == 0:  # First roommate gets the room number
+                        table_data.append([
+                            str(sr_no),
+                            str(room['room_id']),
+                            roommate['full_name'],
+                            str(roommate['mobile_number'])
+                        ])
+                    else:  # Additional roommates get empty room number field
+                        table_data.append([
+                            '',
+                            '',
+                            roommate['full_name'],
+                            str(roommate['mobile_number'])
+                        ])
+                sr_no += 1
+            else:
+                table_data.append([
+                    str(sr_no),
+                    str(room['room_id']),
+                    'Not Allotted',
+                    'N/A'
+                ])
+                sr_no += 1
+
+        # Calculate table dimensions
+        table_width = width - 2 * margin
+        col_widths = [0.8 * inch, 1.2 * inch, 3 * inch, 1.5 * inch]
+        
+        # Draw table manually for better control
+        row_height = 0.3 * inch
+        header_height = 0.4 * inch
+        
+        # Draw table borders and content
+        start_x = margin
+        start_y = y_position
+        
+        # Draw header
+        p.setFont("Helvetica-Bold", 10)
+        p.rect(start_x, start_y - header_height, table_width, header_height)
+        
+        # Header background
+        p.setFillColor(colors.lightgrey)
+        p.rect(start_x, start_y - header_height, table_width, header_height, fill=True)
+        p.setFillColor(colors.black)
+        
+        # Header text
+        x_pos = start_x
+        for i, header in enumerate(table_data[0]):
+            p.drawString(x_pos + 5, start_y - header_height + 10, header)
+            x_pos += col_widths[i]
+        
+        # Draw vertical lines for header
+        x_pos = start_x
+        for width_val in col_widths:
+            p.line(x_pos, start_y, x_pos, start_y - header_height)
+            x_pos += width_val
+        p.line(x_pos, start_y, x_pos, start_y - header_height)  # Right border
+        
+        current_y = start_y - header_height
+        
+        # Draw data rows
+        p.setFont("Helvetica", 9)
+        for row_idx, row in enumerate(table_data[1:]):
+            # Draw row background (alternating colors)
+            if row_idx % 2 == 0:
+                p.setFillColor(colors.white)
+            else:
+                p.setFillColor(colors.Color(0.95, 0.95, 0.95))
+            
+            p.rect(start_x, current_y - row_height, table_width, row_height, fill=True)
+            p.setFillColor(colors.black)
+            
+            # Draw cell content
+            x_pos = start_x
+            for i, cell in enumerate(row):
+                # Handle text wrapping for long names
+                if i == 2 and len(cell) > 25:  # Student name column
+                    # Split long names
+                    words = cell.split()
+                    if len(words) > 2:
+                        line1 = ' '.join(words[:len(words)//2])
+                        line2 = ' '.join(words[len(words)//2:])
+                        p.drawString(x_pos + 3, current_y - row_height + 18, line1)
+                        p.drawString(x_pos + 3, current_y - row_height + 8, line2)
+                    else:
+                        p.drawString(x_pos + 3, current_y - row_height + 13, cell)
+                else:
+                    p.drawString(x_pos + 3, current_y - row_height + 13, cell)
+                x_pos += col_widths[i]
+            
+            # Draw vertical lines
+            x_pos = start_x
+            for width_val in col_widths:
+                p.line(x_pos, current_y, x_pos, current_y - row_height)
+                x_pos += width_val
+            p.line(x_pos, current_y, x_pos, current_y - row_height)  # Right border
+            
+            # Draw horizontal line
+            p.line(start_x, current_y - row_height, start_x + table_width, current_y - row_height)
+            
+            current_y -= row_height
+        
+        return current_y - 0.5 * inch
+
+# from django.http import HttpResponse
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+# from reportlab.pdfgen import canvas
+# from reportlab.lib.pagesizes import A4
+# from reportlab.lib.units import inch
+# from io import BytesIO
+
+# #this is  final version 
+# class GeneratePDFView(APIView):
+#     def post(self, request):
+#         year = request.data.get("year")
+#         gender = request.data.get("gender")
+
+#         # Map frontend year values to Floor.class_name
+#         year_mapping = {
+#             "first": "fy",
+#             "second": "sy",
+#             "third": "ty",
+#             "fourth": "btech",
+#         }
+
+#         if not year or not gender:
+#             return Response({"error": "Year and gender are required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+#         if year not in year_mapping or gender not in ["male", "female"]:
+#             return Response({"error": "Invalid year or gender"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         try:
+#             # Convert year to class_name
+#             class_name = year_mapping[year]
+
+#             # Initialize dictionary to group rooms by block
+#             block_rooms = {}
+
+#             # Fetch all occupied rooms
+#             rooms = Room.objects.filter(
+#                 is_occupied=True,
+#                 alloted_group__isnull=False
+#             ).select_related("floor__block")
+
+#             # Group rooms by block for the given year and gender
+#             for room in rooms:
+#                 floor = room.floor
+#                 if floor.class_name == class_name and floor.gender == gender:
+#                     block_name = floor.block.name
+#                     if block_name not in block_rooms:
+#                         block_rooms[block_name] = []
+
+#                     # Fetch roommate details for this room
+#                     current_grp = room.alloted_group
+#                     roommate_details = []
+
+#                     if current_grp:
+#                         # Get all CustomUser objects for the group
+#                         roommate_users = current_grp.members.all()
+
+#                         for user in roommate_users:
+#                             # Check if the user has related student data
+#                             if hasattr(user, 'data_entry') and user.data_entry:
+#                                 entry = user.data_entry
+#                                 full_name = f"{entry.first_name} {entry.middle_name or ''} {entry.last_name or ''}".strip()
+#                                 mobile_number = entry.mobile_number
+#                                 roommate_details.append({
+#                                     'full_name': full_name,
+#                                     'mobile_number': mobile_number
+#                                 })
+#                             else:
+#                                 roommate_details.append({
+#                                     'full_name': user.username,  # Fallback to username if no data_entry
+#                                     'mobile_number': 'N/A'
+#                                 })
+#                     else:
+#                         roommate_details.append({
+#                             'full_name': 'Not Allotted',
+#                             'mobile_number': 'N/A'
+#                         })
+
+#                     # Store room with its roommate details
+#                     block_rooms[block_name].append({
+#                         'room_id': room.room_id,
+#                         'roommates': roommate_details
+#                     })
+
+#             if not block_rooms:
+#                 return Response({"error": "No rooms allotted for the selected year and gender"}, status=status.HTTP_404_NOT_FOUND)
+
+#             # Create PDF
+#             buffer = BytesIO()
+#             p = canvas.Canvas(buffer, pagesize=A4)
+#             width, height = A4
+#             margin = inch
+#             y_position = height - margin
+
+#             # Title
+#             title = f"{year.capitalize()} Year - {gender.capitalize()} Rooms"
+#             p.setFont("Helvetica-Bold", 16)
+#             p.drawString(margin, y_position, title)
+#             y_position -= 0.5 * inch
+
+#             # Generate sections for each block
+#             for block_name, rooms in block_rooms.items():
+#                 # Block heading
+#                 p.setFont("Helvetica-Bold", 14)
+#                 p.drawString(margin, y_position, block_name)
+#                 y_position -= 0.3 * inch
+
+#                 # List rooms and their roommates
+#                 for room in sorted(rooms, key=lambda x: x['room_id']):  # Sort rooms for readability
+#                     # Draw room ID
+#                     p.setFont("Helvetica", 12)
+#                     p.drawString(margin + 0.2 * inch, y_position, f"- {room['room_id']}")
+#                     y_position -= 0.2 * inch
+
+#                     # Draw roommate details indented below the room
+#                     p.setFont("Helvetica", 10)
+#                     for roommate in room['roommates']:
+#                         roommate_text = f"  • {roommate['full_name']} (Mobile: {roommate['mobile_number']})"
+#                         p.drawString(margin + 0.4 * inch, y_position, roommate_text)
+#                         y_position -= 0.15 * inch
+
+#                     y_position -= 0.1 * inch  # Small space after each room's roommates
+
+#                     # Check for page overflow
+#                     if y_position < margin:
+#                         p.showPage()
+#                         p.setFont("Helvetica", 12)  # Reset font for new page
+#                         y_position = height - margin
+
+#                 y_position -= 0.3 * inch  # Space between blocks
+
+#                 # Check for page overflow after block
+#                 if y_position < margin:
+#                     p.showPage()
+#                     p.setFont("Helvetica", 12)
+#                     y_position = height - margin
+
+#             p.showPage()
+#             p.save()
+
+#             # Get PDF data
+#             pdf = buffer.getvalue()
+#             buffer.close()
+
+#             # Return PDF response
+#             response = HttpResponse(content_type="application/pdf")
+#             response["Content-Disposition"] = f'attachment; filename="room_allotment_{year}_{gender}.pdf"'
+#             response.write(pdf)
+#             return response
+
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+# #FOR MAKING SURE OT ONLY ONE TIME ALLOTMENT IS DONE 
+# from .models import AllotmentHistory
+# from .serializers import AllotmentCheckSerializer, AllotmentRecordSerializer, AllotmentResetSerializer
+
+# class CheckAllotmentView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         serializer = AllotmentCheckSerializer(data=request.data)
+#         if serializer.is_valid():
+#             year = serializer.validated_data['year']
+#             gender = serializer.validated_data['gender']
+#             exists = AllotmentHistory.objects.filter(year=year, gender=gender).exists()
+#             return Response({"isAllotmentDone": exists}, status=status.HTTP_200_OK)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# class RecordAllotmentView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         serializer = AllotmentRecordSerializer(data=request.data)
+#         if serializer.is_valid():
+#             year = serializer.validated_data['year']
+#             gender = serializer.validated_data['gender']
+#             AllotmentHistory.objects.get_or_create(year=year, gender=gender)
+#             return Response({"message": "Allotment recorded successfully"}, status=status.HTTP_200_OK)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# class ResetAllotmentView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+#         serializer = AllotmentResetSerializer(data=request.data)
+#         if serializer.is_valid():
+#             year = serializer.validated_data['year']
+#             gender = serializer.validated_data['gender']
+#             AllotmentHistory.objects.filter(year=year, gender=gender).delete()
+#             return Response({"message": "Allotment reset successfully"}, status=status.HTTP_200_OK)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+# --------------- THIS IF FOR ONE TIME ALLOTMENT LOGIN-----------------------------#
+from .serializers import AllotmentResetSerializer, AllotmentResetSerializer, CheckAllotmentSerializer, ManualOverrideSerializer
+
+
+# New view to check if allotment has already been done
+class CheckAllotmentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CheckAllotmentSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        year = serializer.validated_data['year']
+        gender = serializer.validated_data['gender']
+
+        year_mapping = {
+            'first': 'fy',
+            'second': 'sy',
+            'third': 'ty',
+            'fourth': 'btech'
+        }
+        converted_year = year_mapping.get(year.lower())
+        if not converted_year:
+            return Response(
+                {"error": f"Invalid year: {year}. Must be one of 'first', 'second', 'third', 'fourth'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            allotment = AllotmentHistory.objects.get(year=converted_year, gender=gender)
+            return Response({
+                "is_allotted": True,
+                "can_reallocate": allotment.is_manual_override,
+                "allotment_date": allotment.allotment_date
+            }, status=status.HTTP_200_OK)
+        except AllotmentHistory.DoesNotExist:
+            return Response({
+                "is_allotted": False,
+                "can_reallocate": False
+            }, status=status.HTTP_200_OK)
+
+# New view to record an allotment after successful allocation
+class RecordAllotmentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AllotmentRecordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        year = serializer.validated_data['year']
+        gender = serializer.validated_data['gender']
+
+        year_mapping = {
+            'first': 'fy',
+            'second': 'sy',
+            'third': 'ty',
+            'fourth': 'btech'
+        }
+        converted_year = year_mapping.get(year.lower())
+        if not converted_year:
+            return Response(
+                {"error": f"Invalid year: {year}. Must be one of 'first', 'second', 'third', 'fourth'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            AllotmentHistory.objects.update_or_create(
+                year=converted_year,
+                gender=gender,
+                defaults={'is_manual_override': False}
+            )
+            return Response(
+                {"message": f"Allotment recorded for {year} year and {gender} gender."},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response(
+                {"error": f"An error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+# New view to reset an allotment
+class ResetAllotmentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AllotmentResetSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        year = serializer.validated_data['year']
+        gender = serializer.validated_data['gender']
+
+        year_mapping = {
+            'first': 'fy',
+            'second': 'sy',
+            'third': 'ty',
+            'fourth': 'btech'
+        }
+        converted_year = year_mapping.get(year.lower())
+        if not converted_year:
+            return Response(
+                {"error": f"Invalid year: {year}. Must be one of 'first', 'second', 'third', 'fourth'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            AllotmentHistory.objects.filter(year=converted_year, gender=gender).delete()
+            Room.objects.filter(
+                alloted_group__class_name=converted_year,
+                alloted_group__gender=gender
+            ).update(is_occupied=False, alloted_group=None)
+
+            return Response(
+                {"message": f"Allotment reset successfully for {year} year and {gender} gender."},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response(
+                {"error": f"An error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+# New view to toggle manual override
+class ManualOverrideView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ManualOverrideSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        year = serializer.validated_data['year']
+        gender = serializer.validated_data['gender']
+        allow_reallocation = serializer.validated_data['allow_reallocation']
+
+        year_mapping = {
+            'first': 'fy',
+            'second': 'sy',
+            'third': 'ty',
+            'fourth': 'btech'
+        }
+        converted_year = year_mapping.get(year.lower())
+        if not converted_year:
+            return Response(
+                {"error": f"Invalid year: {year}. Must be one of 'first', 'second', 'third', 'fourth'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            allotment = AllotmentHistory.objects.get(year=converted_year, gender=gender)
+            allotment.is_manual_override = allow_reallocation
+            allotment.save()
+            action = "enabled" if allow_reallocation else "disabled"
+            return Response(
+                {"message": f"Manual re-allocation {action} for {year} year and {gender} gender."},
+                status=status.HTTP_200_OK
+            )
+        except AllotmentHistory.DoesNotExist:
+            return Response(
+                {"error": f"No allotment history found for {year} year and {gender} gender."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response(
+                {"error": f"An error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

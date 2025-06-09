@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-toast": "^1.2.14"
   }
 }

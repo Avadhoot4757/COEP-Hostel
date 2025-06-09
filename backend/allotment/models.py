@@ -52,7 +52,13 @@ class Room(models.Model):
     floor = models.ForeignKey(Floor, on_delete=models.CASCADE, related_name='rooms')
     room_id = models.CharField(max_length=10)
     is_occupied = models.BooleanField(default=False)
-
+    alloted_group = models.ForeignKey(
+        'RoomGroup',  # Reference the RoomGroup model
+        on_delete=models.SET_NULL,  # If the RoomGroup is deleted, set the field to NULL
+        null=True,  # Allow the field to be NULL (for unallotted rooms)
+        blank=True,  # Allow the field to be blank in forms
+        related_name='allotted_rooms'  # Name for reverse relationship
+    )
     def __str__(self):
         return f"Room {self.room_id} ({self.floor})"
 
