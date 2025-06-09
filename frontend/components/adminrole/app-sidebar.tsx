@@ -43,6 +43,11 @@ const managementItems = [
     icon: Users,
   },
   {
+    title: "Room Allotment",
+    url: "/manager/room-allotment",
+    icon: Bed,
+  },
+  {
     title: "Room Preference Period",
     url: "/manager/room-preference-period",
     icon: Calendar,

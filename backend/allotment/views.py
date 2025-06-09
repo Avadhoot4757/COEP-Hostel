@@ -448,3 +448,6 @@ class RoomViewSet(viewsets.ModelViewSet):
 #    permission_classes = [IsAuthenticated, IsStaffUser]
     queryset = Room.objects.all()
     serializer_class = RoomSerializer       
+
+
+

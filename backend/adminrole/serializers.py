@@ -207,3 +207,25 @@ class SeatMatrixSerializer(serializers.ModelSerializer):
             reserved_seats = ReservedSeat.objects.create(**reserved_seats_data)
             validated_data['reserved_seats'] = reserved_seats
         return SeatMatrix.objects.create(**validated_data)
+
+
+class AllotRoomsSerializer(serializers.Serializer):
+    year = serializers.CharField(max_length=10, required=True)
+    gender = serializers.CharField(max_length=10, required=True)
+
+class AllotmentRecordSerializer(serializers.Serializer):
+    year = serializers.CharField(max_length=10, required=True)
+    gender = serializers.CharField(max_length=10, required=True)
+
+class AllotmentResetSerializer(serializers.Serializer):
+    year = serializers.CharField(max_length=10, required=True)
+    gender = serializers.CharField(max_length=10, required=True)
+
+class CheckAllotmentSerializer(serializers.Serializer):
+    year = serializers.CharField(max_length=10, required=True)
+    gender = serializers.CharField(max_length=10, required=True)
+
+class ManualOverrideSerializer(serializers.Serializer):
+    year = serializers.CharField(max_length=10, required=True)
+    gender = serializers.CharField(max_length=10, required=True)
+    allow_reallocation = serializers.BooleanField(required=True)
