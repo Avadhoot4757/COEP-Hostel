@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -953,7 +952,7 @@ export default function SeatMatrixPage() {
                                       .filter(c => castesInGroup.includes(c.caste))
                                       .reduce((sum, c) => sum + c.seat_matrix_percentage, 0)
                                     const totalSeats = castesInGroup.reduce(
-                                      (sum, caste) => sum + (matrix[branch][caste] || 0),
+                                      (sum, caste) => sum + (matrix[branch]?.[caste] || 0),
                                       0
                                     )
                                     return (
@@ -969,7 +968,7 @@ export default function SeatMatrixPage() {
                                               onChange={(e) => handleMergedSeatsChange(branch, mergedName, e.target.value)}
                                               className="w-16"
                                             />
-                                            <span>{`(${castesInGroup.map(caste => matrix[branch][caste] || 0).join("+")})`}</span>
+                                            <span>{`(${castesInGroup.map(caste => matrix[branch]?.[caste] || 0).join("+")})`}</span>
                                           </div>
                                         </TableCell>
                                         <TableCell>

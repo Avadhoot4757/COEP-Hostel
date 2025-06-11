@@ -31,8 +31,12 @@ import random, uuid
 from rest_framework.parsers import FormParser, MultiPartParser
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-
+from django.db import IntegrityError
+import time
+import socket
+from requests.exceptions import ConnectionError as RequestsConnectionError
 CustomUser = get_user_model()
+from django.db import OperationalError
 
 CLASS_CHOICES = [
     ("fy", "First Year"),
@@ -589,6 +593,9 @@ class CookieTokenRefreshView(TokenRefreshView):
     
 class StudentDataVerificationView(APIView):
     permission_classes = [IsAuthenticated, IsManager]
+    BATCH_SIZE = 100
+    BATCH_DELAY = 0.5  
+    RETRY_LIMIT = 3
 
     def get(self, request):
         students = StudentDataVerification.objects.all()
@@ -596,9 +603,66 @@ class StudentDataVerificationView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        is_many = isinstance(request.data, list)
-        serializer = StudentDataVerificationSerializer(data=request.data, many=is_many)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = request.data
+        if not isinstance(data, list):
+            data = [data]
+
+        total = len(data)
+        successful = []
+        failed_batches = []
+
+        def is_network_error(exc):
+            """Determine if exception is likely a network-related error."""
+            return isinstance(exc, (socket.timeout, RequestsConnectionError, TimeoutError, ConnectionError, OperationalError))
+
+        # Step 1: Process in batches
+        for i in range(0, total, self.BATCH_SIZE):
+            print("Processing batch from index", i, "to", i + self.BATCH_SIZE)
+            batch = data[i:i + self.BATCH_SIZE]
+            serializer = StudentDataVerificationSerializer(data=batch, many=True)
+            if serializer.is_valid():
+                try:
+                    serializer.save()
+                    successful.extend(serializer.data)
+                except Exception as e:
+                    print(f"[Batch Save Error] {e}")
+                    failed_batches.append(batch)
+            else:
+                print("[Batch Validation Error]", serializer.errors)
+                failed_batches.append(batch)
+
+            time.sleep(self.BATCH_DELAY)
+
+        # Step 2: Retry failed batches individually
+        for batch in failed_batches:
+            for entry in batch:
+                retries = 0
+                while retries < self.RETRY_LIMIT:
+                    serializer = StudentDataVerificationSerializer(data=entry)
+                    print("adding entry")
+                    if not serializer.is_valid():
+                        print(f"[Invalid Entry] Skipping: {serializer.errors}")
+                        break
+
+                    try:
+                        serializer.save()
+                        successful.append(serializer.data)
+                        break  # Success
+                    except IntegrityError as e:
+                        if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
+                            print(f"[Duplicate Entry] Skipping: {entry}")
+                            break  # Skip duplicate
+                        print(f"[Integrity Error] Skipping: {e}")
+                        break  # Other integrity error
+
+                    except Exception as e:
+                        if is_network_error(e):
+                            print(f"[Network Error] Retrying ({retries+1}/3): {e}")
+                            retries += 1
+                            time.sleep(0.2)
+                        else:
+                            print(f"[Non-Retryable Error] Skipping entry: {e}")
+                            break  # Skip non-network error
+                # End while
+
+        return Response({"successful": successful}, status=status.HTTP_201_CREATED) 

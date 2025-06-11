@@ -21,9 +21,8 @@ class SelectDates(models.Model):
         return f"{self.event} - {self.year} (ID: {self.start_date} - {self.end_date or 'N/A'})"
 
 class ReservedSeat(models.Model):
-    JandK = models.IntegerField(default=0)
-    GULFNPIPIOFN = models.IntegerField(default=0)
-    PWD=models.IntegerField(default=0)
+    goi_jk_seats = models.IntegerField(default=0)
+    nri_fn_pio_gulf_seats = models.IntegerField(default=0)
 
     def __str__(self):
         return f"Reserved Seats: GOI & J&K: {self.goi_jk_seats}, NRI/FN/PIO/Gulf: {self.nri_fn_pio_gulf_seats}"

@@ -19,8 +19,10 @@ from io import BytesIO
 from django.http import HttpResponse
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
-
-
+from django.core.exceptions import FieldError
+from django.db import transaction, ProgrammingError
+from django.db.models import Window, F
+from django.db.models.functions import Rank
 
 User = get_user_model()
 
@@ -402,24 +404,13 @@ class ManagersView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-class GetBranchesView(APIView):
-    permission_classes = [IsAuthenticated, IsManager]
+class StudentsView(APIView):
+    permission_classes = [IsAuthenticated, IsRector]
 
     def get(self, request):
-        try:
-            year = request.query_params.get('year', 'fy')
-            gender = request.query_params.get('gender', 'male')
-            try:
-                seat_matrix = SeatMatrix.objects.get(year=year, gender=gender)
-                branches = list(seat_matrix.branch_seats.keys())
-                return Response({"branches": branches}, status=status.HTTP_200_OK)
-            except SeatMatrix.DoesNotExist:
-                return Response({"branches": []}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        students = User.objects.filter(user_type="student")
+        serializer = UserSerializer(students, many=True)
+        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
 
 class AllotBranchRanksView(APIView):
     permission_classes = [IsAuthenticated, IsManager]
@@ -445,7 +436,6 @@ class AllotBranchRanksView(APIView):
             students = StudentDataEntry.objects.filter(
                 class_name=year,
                 gender=gender,
-                is_manually_modified=False
             ).select_related('branch')
 
             if not students.exists():
@@ -485,127 +475,6 @@ class AllotBranchRanksView(APIView):
                     "selection_details": select_response.data
                 },
                 status=status.HTTP_200_OK
-            )
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-class StudentsView(APIView):
-    permission_classes = [IsAuthenticated, IsRector]
-
-    def get(self, request):
-        students = User.objects.filter(user_type="student")
-        serializer = UserSerializer(students, many=True)
-        return Response({"data": serializer.data}, status=status.HTTP_200_OK)
-class GetStudentsView(APIView):
-    permission_classes = [IsAuthenticated, IsManager]
-
-    def get(self, request):
-        try:
-            year = request.query_params.get('year', 'fy')
-            gender = request.query_params.get('gender', 'male')
-            category = request.query_params.get('category', 'all')
-            branch = request.query_params.get('branch', 'all')
-
-            valid_years = [choice[0] for choice in StudentDataEntry.CLASS_CHOICES]
-            if year not in valid_years:
-                return Response(
-                    {"error": f"Invalid year. Must be one of: {', '.join(valid_years)}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            valid_genders = [choice[0] for choice in StudentDataEntry.GENDER_CHOICES]
-            if gender not in valid_genders:
-                return Response(
-                    {"error": f"Invalid gender. Must be one of: {', '.join(valid_genders)}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            query = Q(class_name=year, gender=gender, verified=True)
-            if category != 'all':
-                query &= Q(caste__caste__iexact=category)
-            if branch != 'all':
-                query &= Q(branch__branch=branch)
-
-            students = StudentDataEntry.objects.filter(query).select_related('branch', 'caste', 'admission_category').order_by('branch__branch', 'branch_rank')
-
-            student_data = [
-                {
-                    "roll_no": student.roll_no,
-                    "first_name": student.first_name,
-                    "middle_name": student.middle_name,
-                    "last_name": student.last_name,
-                    "class_name": student.class_name,
-                    "branch": {"name": student.branch.branch},
-                    "verified": student.verified,
-                    "selected": student.selected,
-                    "last_selection_year": student.last_selection_year,
-                    "caste": {"name": student.caste.caste},
-                    "admission_category": {"name": student.admission_category.admission_category},
-                }
-                for student in students
-            ]
-
-            return Response({"students": student_data}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-class SelectStudentView(APIView):
-    permission_classes = [IsAuthenticated, IsManager]
-
-    def post(self, request):
-        try:
-            roll_no = request.data.get('roll_no')
-            if not roll_no:
-                return Response(
-                    {"error": "Roll number is required."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            student = StudentDataEntry.objects.get(roll_no=roll_no)
-            student.selected = True
-            student.is_manually_modified = True
-            student.save(update_fields=['selected', 'is_manually_modified'])
-            return Response(
-                {"message": f"Student {roll_no} selected successfully."},
-                status=status.HTTP_200_OK
-            )
-        except StudentDataEntry.DoesNotExist:
-            return Response(
-                {"error": f"Student with roll number {roll_no} not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-class RemoveStudentView(APIView):
-    permission_classes = [IsAuthenticated, IsManager]
-
-    def post(self, request):
-        try:
-            roll_no = request.data.get('roll_no')
-            if not roll_no:
-                return Response(
-                    {"error": "Roll number is required."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            student = StudentDataEntry.objects.get(roll_no=roll_no)
-            student.selected = False
-            student.is_manually_modified = True
-            student.save(update_fields=['selected', 'is_manually_modified'])
-            return Response(
-                {"message": f"Student {roll_no} removed from selection successfully."},
-                status=status.HTTP_200_OK
-            )
-        except StudentDataEntry.DoesNotExist:
-            return Response(
-                {"error": f"Student with roll number {roll_no} not found."},
-                status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
@@ -895,6 +764,8 @@ class exp_students(APIView):
 
 
 class DashboardView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
     def get(self, request):
         try:
             year_mapping = {
@@ -981,20 +852,6 @@ class DashboardView(APIView):
                 {"error": f"Failed to fetch dashboard data: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        
-
-
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-
-
-import random
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from django.db.models import Q
 
 class AllotRoomsView(APIView):
     def post(self, request):
@@ -1436,203 +1293,6 @@ class GeneratePDFView(APIView):
         
         return current_y - 0.5 * inch
 
-# from django.http import HttpResponse
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from reportlab.pdfgen import canvas
-# from reportlab.lib.pagesizes import A4
-# from reportlab.lib.units import inch
-# from io import BytesIO
-
-# #this is  final version 
-# class GeneratePDFView(APIView):
-#     def post(self, request):
-#         year = request.data.get("year")
-#         gender = request.data.get("gender")
-
-#         # Map frontend year values to Floor.class_name
-#         year_mapping = {
-#             "first": "fy",
-#             "second": "sy",
-#             "third": "ty",
-#             "fourth": "btech",
-#         }
-
-#         if not year or not gender:
-#             return Response({"error": "Year and gender are required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-#         if year not in year_mapping or gender not in ["male", "female"]:
-#             return Response({"error": "Invalid year or gender"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         try:
-#             # Convert year to class_name
-#             class_name = year_mapping[year]
-
-#             # Initialize dictionary to group rooms by block
-#             block_rooms = {}
-
-#             # Fetch all occupied rooms
-#             rooms = Room.objects.filter(
-#                 is_occupied=True,
-#                 alloted_group__isnull=False
-#             ).select_related("floor__block")
-
-#             # Group rooms by block for the given year and gender
-#             for room in rooms:
-#                 floor = room.floor
-#                 if floor.class_name == class_name and floor.gender == gender:
-#                     block_name = floor.block.name
-#                     if block_name not in block_rooms:
-#                         block_rooms[block_name] = []
-
-#                     # Fetch roommate details for this room
-#                     current_grp = room.alloted_group
-#                     roommate_details = []
-
-#                     if current_grp:
-#                         # Get all CustomUser objects for the group
-#                         roommate_users = current_grp.members.all()
-
-#                         for user in roommate_users:
-#                             # Check if the user has related student data
-#                             if hasattr(user, 'data_entry') and user.data_entry:
-#                                 entry = user.data_entry
-#                                 full_name = f"{entry.first_name} {entry.middle_name or ''} {entry.last_name or ''}".strip()
-#                                 mobile_number = entry.mobile_number
-#                                 roommate_details.append({
-#                                     'full_name': full_name,
-#                                     'mobile_number': mobile_number
-#                                 })
-#                             else:
-#                                 roommate_details.append({
-#                                     'full_name': user.username,  # Fallback to username if no data_entry
-#                                     'mobile_number': 'N/A'
-#                                 })
-#                     else:
-#                         roommate_details.append({
-#                             'full_name': 'Not Allotted',
-#                             'mobile_number': 'N/A'
-#                         })
-
-#                     # Store room with its roommate details
-#                     block_rooms[block_name].append({
-#                         'room_id': room.room_id,
-#                         'roommates': roommate_details
-#                     })
-
-#             if not block_rooms:
-#                 return Response({"error": "No rooms allotted for the selected year and gender"}, status=status.HTTP_404_NOT_FOUND)
-
-#             # Create PDF
-#             buffer = BytesIO()
-#             p = canvas.Canvas(buffer, pagesize=A4)
-#             width, height = A4
-#             margin = inch
-#             y_position = height - margin
-
-#             # Title
-#             title = f"{year.capitalize()} Year - {gender.capitalize()} Rooms"
-#             p.setFont("Helvetica-Bold", 16)
-#             p.drawString(margin, y_position, title)
-#             y_position -= 0.5 * inch
-
-#             # Generate sections for each block
-#             for block_name, rooms in block_rooms.items():
-#                 # Block heading
-#                 p.setFont("Helvetica-Bold", 14)
-#                 p.drawString(margin, y_position, block_name)
-#                 y_position -= 0.3 * inch
-
-#                 # List rooms and their roommates
-#                 for room in sorted(rooms, key=lambda x: x['room_id']):  # Sort rooms for readability
-#                     # Draw room ID
-#                     p.setFont("Helvetica", 12)
-#                     p.drawString(margin + 0.2 * inch, y_position, f"- {room['room_id']}")
-#                     y_position -= 0.2 * inch
-
-#                     # Draw roommate details indented below the room
-#                     p.setFont("Helvetica", 10)
-#                     for roommate in room['roommates']:
-#                         roommate_text = f"  • {roommate['full_name']} (Mobile: {roommate['mobile_number']})"
-#                         p.drawString(margin + 0.4 * inch, y_position, roommate_text)
-#                         y_position -= 0.15 * inch
-
-#                     y_position -= 0.1 * inch  # Small space after each room's roommates
-
-#                     # Check for page overflow
-#                     if y_position < margin:
-#                         p.showPage()
-#                         p.setFont("Helvetica", 12)  # Reset font for new page
-#                         y_position = height - margin
-
-#                 y_position -= 0.3 * inch  # Space between blocks
-
-#                 # Check for page overflow after block
-#                 if y_position < margin:
-#                     p.showPage()
-#                     p.setFont("Helvetica", 12)
-#                     y_position = height - margin
-
-#             p.showPage()
-#             p.save()
-
-#             # Get PDF data
-#             pdf = buffer.getvalue()
-#             buffer.close()
-
-#             # Return PDF response
-#             response = HttpResponse(content_type="application/pdf")
-#             response["Content-Disposition"] = f'attachment; filename="room_allotment_{year}_{gender}.pdf"'
-#             response.write(pdf)
-#             return response
-
-#         except Exception as e:
-#             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-# #FOR MAKING SURE OT ONLY ONE TIME ALLOTMENT IS DONE 
-# from .models import AllotmentHistory
-# from .serializers import AllotmentCheckSerializer, AllotmentRecordSerializer, AllotmentResetSerializer
-
-# class CheckAllotmentView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         serializer = AllotmentCheckSerializer(data=request.data)
-#         if serializer.is_valid():
-#             year = serializer.validated_data['year']
-#             gender = serializer.validated_data['gender']
-#             exists = AllotmentHistory.objects.filter(year=year, gender=gender).exists()
-#             return Response({"isAllotmentDone": exists}, status=status.HTTP_200_OK)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# class RecordAllotmentView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         serializer = AllotmentRecordSerializer(data=request.data)
-#         if serializer.is_valid():
-#             year = serializer.validated_data['year']
-#             gender = serializer.validated_data['gender']
-#             AllotmentHistory.objects.get_or_create(year=year, gender=gender)
-#             return Response({"message": "Allotment recorded successfully"}, status=status.HTTP_200_OK)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# class ResetAllotmentView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         serializer = AllotmentResetSerializer(data=request.data)
-#         if serializer.is_valid():
-#             year = serializer.validated_data['year']
-#             gender = serializer.validated_data['gender']
-#             AllotmentHistory.objects.filter(year=year, gender=gender).delete()
-#             return Response({"message": "Allotment reset successfully"}, status=status.HTTP_200_OK)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
 
 # --------------- THIS IF FOR ONE TIME ALLOTMENT LOGIN-----------------------------#
 from .serializers import AllotmentResetSerializer, AllotmentResetSerializer, CheckAllotmentSerializer, ManualOverrideSerializer
@@ -1805,5 +1465,248 @@ class ManualOverrideView(APIView):
             print(f"Error: {str(e)}")
             return Response(
                 {"error": f"An error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class FetchBranchesView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
+    def get(self, request):
+        try:
+            # Validate query params using serializer
+            serializer = BranchesRequestSerializer(data=request.query_params)
+            serializer.is_valid(raise_exception=True)
+
+            year = serializer.validated_data['year']
+            gender = serializer.validated_data['gender']
+
+            # Fetch distinct branches
+            branches = StudentDataEntry.objects.filter(
+                class_name=year,
+                gender=gender
+            ).values_list('branch__branch', flat=True).distinct()
+
+            if not branches:
+                return Response(
+                    {"message": f"No branches found for {year} {gender}."},
+                    status=status.HTTP_200_OK
+                )
+
+            # Serialize response
+            response_serializer = BranchesResponseSerializer({"branches": list(branches)})
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class SelectStudentsAndRankView(APIView):
+    permission_classes = [IsAuthenticated, IsManager]
+
+    def get(self, request):
+        print("==> Step 1: Starting request processing")
+
+        try:
+            # Step 1: Validate query params
+            print("==> Step 1.1: Validating query parameters")
+            serializer = StudentsRequestSerializer(data=request.query_params)
+            try:
+                serializer.is_valid(raise_exception=True)
+            except Exception as e:
+                print(f"!! Validation error: {str(e)}")
+                return Response(
+                    {"error": f"Validation error: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            year = serializer.validated_data['year']
+            gender = serializer.validated_data['gender']
+            branch = serializer.validated_data['branch']
+            print(f"==> Step 1.2: Params -> Year: {year}, Gender: {gender}, Branch: {branch}")
+
+            # Step 2: Query students
+            try:
+                print("==> Step 2: Querying students from DB")
+                with transaction.atomic():
+                    students = StudentDataEntry.objects.filter(
+                        class_name=year,
+                        gender=gender,
+                        branch__branch=branch
+                    ).select_related('branch', 'caste', 'admission_category').annotate(
+                        new_rank=Window(
+                            expression=Rank(),
+                            partition_by=[F('branch_id')],
+                            order_by=F('cgpa').desc(nulls_last=True)
+                        )
+                    )
+                    print(f"==> Step 2.1: Fetched {students.count()} students")
+            except FieldError as e:
+                print(f"!! FieldError during DB query: {str(e)}")
+                return Response(
+                    {"error": f"Query field error: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            except ProgrammingError as e:
+                print(f"!! ProgrammingError during DB query: {str(e)}")
+                return Response(
+                    {"error": f"Database error: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            if not students.exists():
+                print(f"==> No students found for given parameters")
+                return Response(
+                    {"message": f"No {year} {gender} students found for branch {branch}."},
+                    status=status.HTTP_200_OK
+                )
+
+            # Step 3: Update branch ranks
+            try:
+                print("==> Step 3: Updating branch ranks if needed")
+                students_to_update = []
+                for student in students:
+                    if student.branch_rank != student.new_rank:
+                        student.branch_rank = student.new_rank
+                        students_to_update.append(student)
+
+                if students_to_update:
+                    print(f"==> Step 3.1: Bulk updating {len(students_to_update)} students")
+                    StudentDataEntry.objects.bulk_update(students_to_update, ['branch_rank'])
+                else:
+                    print("==> Step 3.1: No rank changes detected")
+            except Exception as e:
+                print(f"!! Error updating ranks: {str(e)}")
+                return Response(
+                    {"error": f"Error updating ranks: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            # Step 4: Prepare student data
+            try:
+                print("==> Step 4: Preparing response data")
+                student_data = []
+                for student in students:
+                    try:
+                        admission_category_name = student.admission_category.admission_category if student.admission_category else "N/A"
+                        caste_name = student.caste.caste if student.caste else "N/A"
+                    except AttributeError as e:
+                        print(f"!! Attribute error in related fields: {str(e)}")
+                        return Response(
+                            {"error": f"Error accessing related fields (admission_category or caste): {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                        )
+
+                    student_data.append({
+                        "roll_no": student.roll_no,
+                        "name": f"{student.first_name} {student.middle_name or ''} {student.last_name or ''}".strip(),
+                        "admission_category": admission_category_name,
+                        "caste": caste_name,
+                        "cgpa": student.cgpa,
+                        "backlogs": student.backlogs,
+                        "branch_rank": student.branch_rank,
+                        "seat_alloted": student.seat_alloted
+                    })
+
+                print(f"==> Step 4.1: Prepared data for {len(student_data)} students")
+            except Exception as e:
+                print(f"!! Error preparing student data: {str(e)}")
+                return Response(
+                    {"error": f"Error preparing student data: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            # Step 5: Serialize and return response
+            print("==> Step 5: Serializing response")
+            response_serializer = StudentsResponseSerializer({"students": student_data})
+            print("==> Step 5.1: Sending response")
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"!! Unexpected error: {str(e)}")
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request):
+        try:
+            # Step 1: Validate request data
+            serializer = SaveAllocationsRequestSerializer(data=request.data)
+            try:
+                serializer.is_valid(raise_exception=True)
+            except Exception as e:
+                return Response(
+                    {"error": f"Validation error: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            year = serializer.validated_data['year']
+            gender = serializer.validated_data['gender']
+            branch = serializer.validated_data['branch']
+            allocations = serializer.validated_data['allocations']
+
+            # Step 2: Fetch students
+            try:
+                students = StudentDataEntry.objects.filter(
+                    class_name=year,
+                    gender=gender,
+                    branch__branch=branch
+                )
+            except FieldError as e:
+                return Response(
+                    {"error": f"Query field error: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            except ProgrammingError as e:
+                return Response(
+                    {"error": f"Database error: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            if not students.exists():
+                return Response(
+                    {"message": f"No {year} {gender} students found for branch {branch}."},
+                    status=status.HTTP_200_OK
+                )
+
+            # Step 3: Reset seat allocations
+            try:
+                students.update(seat_alloted=None)
+            except Exception as e:
+                return Response(
+                    {"error": f"Error resetting seat allocations: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            # Step 4: Update seat allocations
+            try:
+                students_to_update = []
+                roll_nos = {student.roll_no: student for student in students}
+                for allocation in allocations:
+                    roll_no = allocation['roll_no']
+                    seat_alloted = allocation['seat_alloted']
+                    if roll_no in roll_nos and seat_alloted:
+                        student = roll_nos[roll_no]
+                        student.seat_alloted = seat_alloted
+                        students_to_update.append(student)
+
+                if students_to_update:
+                    StudentDataEntry.objects.bulk_update(students_to_update, ['seat_alloted'])
+            except Exception as e:
+                return Response(
+                    {"error": f"Error updating seat allocations: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            # Step 5: Serialize and return response
+            response_serializer = SaveAllocationsResponseSerializer({
+                "message": f"Successfully saved allocations for {year} {gender} students in branch {branch}."
+            })
+            return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": f"Unexpected error: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

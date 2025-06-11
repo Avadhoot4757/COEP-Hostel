@@ -1,5 +1,5 @@
-import { Input } from "@/components/applicationform/ui/input";
-import { Label } from "@/components/applicationform/ui/label";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Download, Eye } from "lucide-react";
 import { useFormContext} from "react-hook-form";
 import { useRef } from "react";
