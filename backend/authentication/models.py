@@ -145,9 +145,9 @@ class StudentDataEntry(models.Model):
     college_fee_receipt = models.FileField(upload_to='student_documents/fee_receipt/', null=True, blank=True)
     non_creamy_layer_certificate = models.FileField(upload_to='student_documents/ncl_certificate/', null=True, blank=True)
     verified = models.BooleanField(null=True, default=None)
-    selected = models.BooleanField(default=False)  # New field to track selection
-    last_selection_year = models.CharField(max_length=10, choices=CLASS_CHOICES, null=True, blank=True)  # Tracks the year of last selection
-    is_manually_modified = models.BooleanField(default=False)
+    selected = models.BooleanField(default=False)
+    seat_alloted = models.CharField(max_length=15, null=True, blank=True)
+    backlogs = models.IntegerField(null=True, blank=True)
     def __str__(self):
         return f"{self.first_name} {self.last_name or ''} ({self.roll_no})"
 

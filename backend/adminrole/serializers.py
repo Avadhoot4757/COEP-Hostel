@@ -207,3 +207,57 @@ class SeatMatrixSerializer(serializers.ModelSerializer):
             reserved_seats = ReservedSeat.objects.create(**reserved_seats_data)
             validated_data['reserved_seats'] = reserved_seats
         return SeatMatrix.objects.create(**validated_data)
+
+class BranchesRequestSerializer(serializers.Serializer):
+    year = serializers.CharField()
+    gender = serializers.CharField(default="male")
+
+    def validate_year(self, value):
+        valid_years = [choice[0] for choice in StudentDataEntry.CLASS_CHOICES]
+        if value not in valid_years:
+            raise serializers.ValidationError(f"Invalid year. Must be one of: {', '.join(valid_years)}")
+        return value
+
+    def validate_gender(self, value):
+        valid_genders = [choice[0] for choice in StudentDataEntry.GENDER_CHOICES]
+        if value not in valid_genders:
+            raise serializers.ValidationError(f"Invalid gender. Must be one of: {', '.join(valid_genders)}")
+        return value
+
+class BranchesResponseSerializer(serializers.Serializer):
+    branches = serializers.ListField(child=serializers.CharField())
+
+class StudentsRequestSerializer(serializers.Serializer):
+    year = serializers.CharField()
+    gender = serializers.CharField(default="male")
+    branch = serializers.CharField()
+
+    def validate_year(self, value):
+        valid_years = [choice[0] for choice in StudentDataEntry.CLASS_CHOICES]
+        if value not in valid_years:
+            raise serializers.ValidationError(f"Invalid year. Must be one of: {', '.join(valid_years)}")
+        return value
+
+    def validate_gender(self, value):
+        valid_genders = [choice[0] for choice in StudentDataEntry.GENDER_CHOICES]
+        if value not in valid_genders:
+            raise serializers.ValidationError(f"Invalid gender. Must be one of: {', '.join(valid_genders)}")
+        return value
+
+    def validate_branch(self, value):
+        if not value:
+            raise serializers.ValidationError("Branch is required.")
+        return value
+
+class StudentSerializer(serializers.Serializer):
+    roll_no = serializers.CharField()
+    name = serializers.CharField()
+    admission_category = serializers.CharField()
+    caste = serializers.CharField()
+    cgpa = serializers.FloatField(allow_null=True)
+    backlogs = serializers.IntegerField(allow_null=True)
+    branch_rank = serializers.IntegerField()
+    seat_alloted = serializers.CharField(allow_null=True)
+
+class StudentsResponseSerializer(serializers.Serializer):
+    students = StudentSerializer(many=True)
