@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, FC } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -20,7 +20,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { fetchStudentsByYear, updateStudentStatus } from "@/lib/api-utils"
 import { CheckCircle, XCircle } from "lucide-react"
-import StudentDetailsModal from "@/app/manager/student-details-modal/page"
 
 interface Student {
   roll_no: string
@@ -39,6 +38,45 @@ interface Student {
     admission_category: string
   }
   gender: string
+}
+
+// Define props for StudentDetailsModal
+interface StudentDetailsModalProps {
+  rollNo: string
+  isOpen: boolean
+  onClose: () => void
+  onStudentUpdated: () => Promise<void>
+}
+
+// StudentDetailsModal component
+const StudentDetailsModal: FC<StudentDetailsModalProps> = ({
+  rollNo,
+  isOpen,
+  onClose,
+  onStudentUpdated,
+}) => {
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Student Details - {rollNo}</DialogTitle>
+          <DialogDescription>View detailed information for the selected student.</DialogDescription>
+        </DialogHeader>
+        <div className="py-4">
+          <p><strong>Roll No:</strong> {rollNo}</p>
+          {/* Add more student details here, e.g., fetched via API */}
+          <p className="text-sm text-gray-500 mt-2">
+            Additional details can be fetched and displayed here.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 export default function ManagerPage() {
@@ -361,7 +399,7 @@ export default function ManagerPage() {
                               </TableCell>
                               <TableCell>
                                 <div className="text-sm">
-                                  <div className="font-medium">{student.admission_category.admission_category }</div>
+                                  <div className="font-medium">{student.admission_category.admission_category}</div>
                                   <div className="text-gray-500">({student.caste.name})</div>
                                 </div>
                               </TableCell>
