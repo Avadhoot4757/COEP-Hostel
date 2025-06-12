@@ -154,12 +154,19 @@ class StudentDataEntry(models.Model):
 
 class StudentDataVerification(models.Model):
     roll_no = models.CharField(max_length=20, primary_key=True)
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=True, null=True, blank=True)
     class_name = models.CharField(
         max_length=10,
         choices=CustomUser.CLASS_CHOICES,
-        help_text="Year of the student"
+        help_text="Year of the student",
+        null=True,
+        blank=True
     )
+    backlogs = models.IntegerField(null=True, blank=True)
+    cgpa = models.FloatField(null=True, blank=True)
+    rank = models.IntegerField(null=True, blank=True)
+    gender = models.CharField(max_length=10, null=True, blank=True, choices=StudentDataEntry.GENDER_CHOICES)
+    caste = models.ForeignKey(Caste, null=True, blank=True, on_delete=models.DO_NOTHING)
 
     def __str__(self):
         return f"{self.roll_no} ({self.class_name})"
