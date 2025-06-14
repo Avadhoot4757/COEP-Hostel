@@ -25,7 +25,7 @@ export const FileUploadField = ({ name, label, accept = ".pdf,.jpg,.png" }: File
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    const maxSize = 5 * 1024 * 1024;
+    const maxSize = 512 * 1024;
 
   if (file && file.size <= maxSize) {
     setValue(name, file, { shouldValidate: true });
@@ -81,7 +81,7 @@ export const FileUploadField = ({ name, label, accept = ".pdf,.jpg,.png" }: File
 
       <Input
         type="hidden"
-        {...register(name, { required: `${label} is required and file size shoule be less than 5MB` })}
+        {...register(name, { required: `${label} is required and file size shoule be less than 512KB` })}
       />
       {errors[name] && (
         <p className="text-sm text-red-500">

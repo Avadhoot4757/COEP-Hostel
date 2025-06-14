@@ -28,24 +28,6 @@ class StudentDataEntrySerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['user', 'verified']
 
-    def validate_rank(self, data):
-        class_name = data.get('class_name')
-        rank = data.get('rank')
-        cgpa = data.get('cgpa')
-
-        if class_name == 'fy':
-            if rank is None:
-                raise serializers.ValidationError({"rank": "Rank is required for First Year students."})
-            if cgpa is not None:
-                raise serializers.ValidationError({"cgpa": "CGPA should not be provided for First Year students."})
-        else:
-            if cgpa is None:
-                raise serializers.ValidationError({"cgpa": "CGPA is required for non-First Year students."})
-            if rank is not None:
-                raise serializers.ValidationError({"rank": "Rank should not be provided for non-First Year students."})
-
-        return data
-
     def validate_roll_no(self, value):
         user = self.context['request'].user
         if value != user.username:
@@ -72,12 +54,6 @@ class StudentDataEntrySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Entrance exam must be null for non-First Year students.")
         return value
 
-    def validate_branch(self, value):
-        try:
-            branch = Branch.objects.get(branch=value)
-            return branch
-        except Branch.DoesNotExist:
-            raise serializers.ValidationError("Invalid branch.")
 
     def validate_admission_category(self, value):
         try:
@@ -95,6 +71,28 @@ class StudentDataEntrySerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         # Conditional file requirements
+        class_name = data.get('class_name')
+        rank = data.get('rank')
+        cgpa = data.get('cgpa')
+        branch = data.get('branch')
+
+        if class_name == 'fy':
+            if rank is None:
+                raise serializers.ValidationError({"rank": "Rank is required for First Year students."})
+            if cgpa is not None:
+                raise serializers.ValidationError({"cgpa": "CGPA should not be provided for First Year students."})
+        else:
+            if cgpa is None:
+                raise serializers.ValidationError({"cgpa": "CGPA is required for non-First Year students."})
+            if rank is not None:
+                raise serializers.ValidationError({"rank": "Rank should not be provided for non-First Year students."})
+
+        try:
+            branch = Branch.objects.get(branch=branch, year=class_name)
+            data['branch'] = branch
+        except Branch.DoesNotExist:
+            raise serializers.ValidationError("Invalid branch.")
+
         caste = data.get('caste')
         if caste:
             if caste.caste not in ['OPEN', 'EWS']:
@@ -164,6 +162,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return data
 
 class StudentDataVerificationSerializer(serializers.ModelSerializer):
+    caste = CasteSerializer(read_only=True) 
     class Meta:
         model = StudentDataVerification
         fields = '__all__'

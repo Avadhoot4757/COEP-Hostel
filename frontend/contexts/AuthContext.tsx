@@ -6,10 +6,28 @@ import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
 
+interface Caste {
+  caste: string;
+  year: string;
+  seat_matrix_percentage: string;
+}
+
+interface StudentData {
+  roll_no: string;
+  email: string;
+  class_name: string;
+  gender: string | null;
+  caste: Caste | null;
+  cgpa: string | null;
+  backlogs: string | null;
+  rank: string | null;
+}
+
 interface User {
   username: string;
   user_type: string;
   class_name?: string;
+  student_data?: StudentData | null;
 }
 
 interface AuthContextType {

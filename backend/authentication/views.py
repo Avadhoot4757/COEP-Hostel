@@ -58,12 +58,23 @@ class CurrentUser(APIView):
 
     def get(self, request):
         user = request.user
+
+        try:
+            # Fetch the student data by user ID (FK)
+            print(user)
+            student_record = StudentDataVerification.objects.get(roll_no=user.username)
+            student_serializer = StudentDataVerificationSerializer(student_record)
+        except StudentDataVerification.DoesNotExist:
+            student_serializer = None
+
         return Response({
             'id': user.id,
             'username': user.username,
             'email': user.email,
-            'class_name': user.class_name
+            'class_name': getattr(user, 'class_name', None),
+            'student_data': student_serializer.data if student_serializer else None
         })
+
 
 class AdmissionCategoryView(APIView):
     permission_classes = []

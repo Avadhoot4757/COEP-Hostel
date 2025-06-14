@@ -150,6 +150,7 @@ const MultiStepForm = () => {
   const [castes, setCastes] = useState<Caste[]>([]);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isFetching, setIsFetching] = useState(true); // New state for fetch loading
+  const [accepted, setAccepted] = useState(false);
 
   const caste = watch("caste", "");
   const className = user?.class_name;
@@ -166,9 +167,11 @@ const MultiStepForm = () => {
 
   // Set roll_no
   useEffect(() => {
+    console.log(user);
     if (!authLoading && user?.username) {
       setValue("roll_no", user.username, { shouldValidate: true });
       setValue("class_name", user?.class_name || "", { shouldValidate: true });
+      setValue("caste", user?.student_data?.caste?.caste || "",)
     }
   }, [user, authLoading, setValue]);
 
@@ -250,6 +253,8 @@ const MultiStepForm = () => {
               <p className="text-gray-700">
                 If you need further assistance, please contact the hostel
                 administration office.
+
+                Here a wa group link can be provided.
               </p>
             </div>
           </CardContent>
@@ -384,7 +389,7 @@ const MultiStepForm = () => {
     }
     if (step === totalSteps - 2) {
       return ["admission_category", "orphan", "pwd"].concat(
-        String(watch("pwd")) === "yes" ? ["pwd_certificate"] : []
+        (watch("pwd")) === true ? ["pwd_certificate"] : []
       ) as FormFieldName[];
     }
     if (step === totalSteps - 1) {
@@ -402,7 +407,7 @@ const MultiStepForm = () => {
       ];
     }
     if (step === totalSteps) {
-      return ["application_form", "hostel_no_dues", "mess_no_dues"] as FormFieldName[];
+      return ["application_form", "hostel_no_dues", "mess_no_dues", "undertaking"] as FormFieldName[];
     }
     return [] as FormFieldName[];
   };
@@ -722,31 +727,14 @@ const MultiStepForm = () => {
                       <Label className="text-gray-700" htmlFor="caste">
                         Category
                       </Label>
-                      <Select
-                        onValueChange={(value) => {
-                          setValue("caste", value);
-                          trigger("caste");
-                        }}
-                        defaultValue={watch("caste")}
-                      >
-                        <SelectTrigger className="bg-white text-black border border-gray-300">
-                          <SelectValue placeholder="Select Category" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white text-black border border-gray-300">
-                          {castes.map((c) => (
-                            <SelectItem
-                              key={c.caste}
-                              className="hover:bg-gray-200"
-                              value={c.caste}
-                            >
-                              {c.caste}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
                       <Input
-                        type="hidden"
-                        {...register("caste", { required: "Category is required" })}
+                        id="caste"
+                        value={user?.student_data?.caste?.caste || ""}
+                        disabled
+                        className="bg-gray-100 text-black border border-gray-300 cursor-not-allowed"
+                        {...register("caste", {
+                          required: "Roll number is required",
+                        })}
                       />
                       {errors.caste && (
                         <p className="text-sm text-red-500">
@@ -1320,14 +1308,50 @@ const MultiStepForm = () => {
                     name="application_form"
                     label="Upload duly signed scan copy of Hostel Admission Application form 2025-26"
                   />
-                  <FileUploadField
-                    name="hostel_no_dues"
-                    label="Upload scan copy of Hostel No Dues Certificate of AY 2024-25"
-                  />
-                  <FileUploadField
-                    name="mess_no_dues"
-                    label="Upload scan copy of Mess No Dues Certificate of AY 2024-25"
-                  />
+                  {user?.class_name?.toLowerCase() !== 'fy' ? (
+                    <>
+                      <FileUploadField
+                        name="hostel_no_dues"
+                        label="Upload scan copy of Hostel No Dues Certificate of AY 2024-25"
+                      />
+                      <FileUploadField
+                        name="mess_no_dues"
+                        label="Upload scan copy of Mess No Dues Certificate of AY 2024-25"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <FileUploadField
+                        name="admission_confirmation_letter"
+                        label="Upload scan copy of Admission Confirmation Letter from University"
+                      />
+                      <FileUploadField
+                        name="college_fee_receipt"
+                        label="Upload scan copy of college Fee Payment Receipt"
+                      />
+                    </>
+                  )}
+
+                  <div className="flex items-start space-x-2 mt-4">
+                    <input
+                      type="checkbox"
+                      id="undertaking"
+                      checked={accepted}
+                      onChange={(e) => setAccepted(e.target.checked)}
+                      className="mt-1"
+                      name="undertaking"
+                      required
+                      onInvalid={(e) =>
+                        (e.target as HTMLInputElement).setCustomValidity("Please accept the undertaking before submitting.")
+                      }
+                      onInput={(e) =>
+                        (e.target as HTMLInputElement).setCustomValidity("")
+                      }
+                    />
+                    <label htmlFor="undertaking" className="text-sm">
+                      <span className="font-medium">Undertaking:</span> I hereby declare that all the information provided is true to the best of my knowledge. I understand that any false information may lead to cancellation of my hostel admission.
+                    </label>
+                  </div>
 
                   <Button
                     type="submit"
