@@ -31,12 +31,14 @@ import random, uuid
 from rest_framework.parsers import FormParser, MultiPartParser
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from django.db import IntegrityError
+from django.db import IntegrityError, connection
 import time
 import socket
+from urllib3.exceptions import TimeoutError
 from requests.exceptions import ConnectionError as RequestsConnectionError
 CustomUser = get_user_model()
-from django.db import OperationalError
+from django.db import OperationalError, transaction
+
 
 CLASS_CHOICES = [
     ("fy", "First Year"),
@@ -591,10 +593,11 @@ class CookieTokenRefreshView(TokenRefreshView):
                 
         return response
     
+
 class StudentDataVerificationView(APIView):
     permission_classes = [IsAuthenticated, IsManager]
     BATCH_SIZE = 100
-    BATCH_DELAY = 0.5  
+    BATCH_DELAY = 0.5
     RETRY_LIMIT = 3
 
     def get(self, request):
@@ -603,66 +606,68 @@ class StudentDataVerificationView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+
         data = request.data
         if not isinstance(data, list):
             data = [data]
-
-        total = len(data)
         successful = []
-        failed_batches = []
 
         def is_network_error(exc):
-            """Determine if exception is likely a network-related error."""
-            return isinstance(exc, (socket.timeout, RequestsConnectionError, TimeoutError, ConnectionError, OperationalError))
+            return isinstance(exc, (socket.timeout,
+                                RequestsConnectionError,
+                                TimeoutError,
+                                ConnectionError,
+                                OperationalError))
 
-        # Step 1: Process in batches
-        for i in range(0, total, self.BATCH_SIZE):
-            print("Processing batch from index", i, "to", i + self.BATCH_SIZE)
+        # Process data in batches
+        for i in range(0, len(data), self.BATCH_SIZE):
             batch = data[i:i + self.BATCH_SIZE]
             serializer = StudentDataVerificationSerializer(data=batch, many=True)
-            if serializer.is_valid():
+            if not serializer.is_valid():
+                print(f"Batch {i} to {i+self.BATCH_SIZE} invalid: {serializer.errors}")
+                # Instead of skipping, try to process valid items individually
+                valid_data = [item for item in batch if StudentDataVerificationSerializer(data=item).is_valid()]
+                if not valid_data:
+                    continue
+                serializer = StudentDataVerificationSerializer(data=valid_data, many=True)
+                if not serializer.is_valid():
+                    continue  # Skip if still invalid
+
+            retries = 0
+            while retries < self.RETRY_LIMIT:
                 try:
-                    serializer.save()
-                    successful.extend(serializer.data)
+                    with transaction.atomic():
+                        instances = serializer.save()
+                    
+                    # Collect successful instances
+                    for instance in instances:
+                        successful.append(StudentDataVerificationSerializer(instance).data)
+                    break  # Exit retry loop on success
+                    
+                except IntegrityError as e:
+                    print(f"Integrity error in batch {i}: {str(e)}")
+                    # Handle individual records to isolate failures
+                    for item in batch:
+                        try:
+                            item_serializer = StudentDataVerificationSerializer(data=item)
+                            if item_serializer.is_valid():
+                                with transaction.atomic():
+                                    instance = item_serializer.save()
+                                successful.append(StudentDataVerificationSerializer(instance).data)
+                        except Exception:
+                            continue  # Skip failed item
+                    break
+                    
                 except Exception as e:
-                    print(f"[Batch Save Error] {e}")
-                    failed_batches.append(batch)
-            else:
-                print("[Batch Validation Error]", serializer.errors)
-                failed_batches.append(batch)
-
+                    if is_network_error(e):
+                        retries += 1
+                        print(f"Network error on batch {i} (retry {retries}): {str(e)}")
+                        time.sleep(0.2)
+                        connection.close()  # Reset DB connection
+                    else:
+                        print(f"Non-network error on batch {i}: {str(e)}")
+                        break  # Exit retry loop for non-network errors
+            
             time.sleep(self.BATCH_DELAY)
-
-        # Step 2: Retry failed batches individually
-        for batch in failed_batches:
-            for entry in batch:
-                retries = 0
-                while retries < self.RETRY_LIMIT:
-                    serializer = StudentDataVerificationSerializer(data=entry)
-                    print("adding entry")
-                    if not serializer.is_valid():
-                        print(f"[Invalid Entry] Skipping: {serializer.errors}")
-                        break
-
-                    try:
-                        serializer.save()
-                        successful.append(serializer.data)
-                        break  # Success
-                    except IntegrityError as e:
-                        if 'unique constraint' in str(e).lower() or 'duplicate' in str(e).lower():
-                            print(f"[Duplicate Entry] Skipping: {entry}")
-                            break  # Skip duplicate
-                        print(f"[Integrity Error] Skipping: {e}")
-                        break  # Other integrity error
-
-                    except Exception as e:
-                        if is_network_error(e):
-                            print(f"[Network Error] Retrying ({retries+1}/3): {e}")
-                            retries += 1
-                            time.sleep(0.2)
-                        else:
-                            print(f"[Non-Retryable Error] Skipping entry: {e}")
-                            break  # Skip non-network error
-                # End while
-
-        return Response({"successful": successful}, status=status.HTTP_201_CREATED) 
+        
+        return Response({"successful": successful}, status=status.HTTP_201_CREATED)

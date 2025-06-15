@@ -167,29 +167,32 @@ class StudentDataVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentDataVerification
         fields = '__all__'
+        extra_kwargs = {
+            'roll_no': {'validators': []},
+            'email': {'validators': []}
+        }
 
     def create(self, validated_data):
-        # If bulk input (list)
         if isinstance(validated_data, list):
-            instances = []
-            for item in validated_data:
-                obj, _ = StudentDataVerification.objects.update_or_create(
-                    roll_no=item['roll_no'],
-                    defaults={
-                        'email': item['email'],
-                        'class_name': item['class_name']
-                    }
-                )
-                instances.append(obj)
-            return instances
-        else:
-            # Single entry
-            obj, _ = StudentDataVerification.objects.update_or_create(
-                roll_no=validated_data['roll_no'],
-                defaults={
-                    'email': validated_data['email'],
-                    'class_name': validated_data['class_name']
-                }
-            )
-            return obj
+            return [self._create_or_update(entry) for entry in validated_data]
+        return self._create_or_update(validated_data)
 
+    def _create_or_update(self, data):
+        roll_no = data.get('roll_no')
+        if not roll_no:
+            # Handle case where roll_no is missing
+            return StudentDataVerification.objects.create(**data)
+            
+        try:
+            instance = StudentDataVerification.objects.get(roll_no=roll_no)
+            # Update existing instance (ignore email and roll_no updates)
+            #print("this is the data", data)
+            for field, value in data.items():
+                # Skip roll_no and email fields, update others with non-null values
+                if field not in ['roll_no', 'email'] and value is not None:
+                    setattr(instance, field, value)
+            instance.save()
+            return instance
+        except StudentDataVerification.DoesNotExist:
+            # Create new instance if doesn't exist
+            return StudentDataVerification.objects.create(**data)
